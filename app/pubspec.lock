@@ -89,6 +89,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.13.1"
+  battery_plus:
+    dependency: "direct main"
+    description:
+      name: battery_plus
+      sha256: "03d5a6bb36db9d2b977c548f6b0262d5a84c4d5a4cfee2edac4a91d57011b365"
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.2.3"
+  battery_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: battery_plus_platform_interface
+      sha256: e8342c0f32de4b1dfd0223114b6785e48e579bfc398da9471c9179b907fa4910
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.1"
   boolean_selector:
     dependency: transitive
     description:
@@ -891,26 +907,26 @@ packages:
     dependency: "direct main"
     description:
       name: maplibre_gl
-      sha256: cd0adf2da87149cab556ac70977783d6dcb3bd73b17a5583cc8366a5aafa46f8
+      sha256: "3c383a7e81f0ec5882c377b7d1686047d8bce35b6a3a9798dad8e57a03423e05"
       url: "https://pub.dev"
     source: hosted
-    version: "0.21.0"
+    version: "0.26.1"
   maplibre_gl_platform_interface:
     dependency: transitive
     description:
       name: maplibre_gl_platform_interface
-      sha256: "6db8234705e58c09b6fd5a43747a817ba1e6e91a76deb3ed057a36a994d86f22"
+      sha256: "4989f157fdb98ad346b31067cd30aefa7e67d0b235599e37b75608c9284cb459"
       url: "https://pub.dev"
     source: hosted
-    version: "0.21.0"
+    version: "0.26.1"
   maplibre_gl_web:
     dependency: transitive
     description:
       name: maplibre_gl_web
-      sha256: e1cbe04594fdb0d76de7cd448c0048290df8dc69dc37a85d23307dd595779141
+      sha256: "55a03e586d2007b646f163902388c3c17df536ea44e4b1c381754863201862e6"
       url: "https://pub.dev"
     source: hosted
-    version: "0.21.0"
+    version: "0.26.1"
   matcher:
     dependency: transitive
     description:
@@ -1364,6 +1380,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  upower:
+    dependency: transitive
+    description:
+      name: upower
+      sha256: cf042403154751180affa1d15614db7fa50234bc2373cd21c3db666c38543ebf
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.7.0"
   uuid:
     dependency: "direct main"
     description:

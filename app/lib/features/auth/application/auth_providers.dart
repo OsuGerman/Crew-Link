@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/firebase/firebase_providers.dart';
 import 'auth_notifier.dart';
 
+export 'auth_notifier.dart' show authNotifierProvider, AuthState, AuthNotifier;
+
 /// Stream of the current Firebase auth user. Emits `null` when signed out.
 final authStateProvider = StreamProvider<User?>((ref) {
   return ref.watch(firebaseAuthProvider).authStateChanges();
@@ -22,4 +24,7 @@ final authIdTokenProvider = FutureProvider<String?>((ref) async {
   return user.getIdToken();
 });
 
-export 'auth_notifier.dart' show authNotifierProvider, AuthState, AuthNotifier;
+/// Dev-Override: erlaubt der Web-Preview (kein Firebase) den Auth-Gate des
+/// Routers zu umgehen, ohne einen Fake-`User` zu basteln. Produktion lässt
+/// das auf `false`; die Override im Main-Entry der Preview setzt true.
+final devSignedInOverrideProvider = StateProvider<bool>((_) => false);

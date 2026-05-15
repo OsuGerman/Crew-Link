@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <base href="/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=393, initial-scale=1, maximum-scale=1">
+  <title>Crew Link</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #0A0A0B;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+                   'Segoe UI', Roboto, sans-serif;
+    }
+    /* Flutter mountet `<flutter-view>` in body, das wiederum `<flt-glass-pane>`
+       enthält. Beide brauchen feste Maße sonst rendert die Scene auf 0×0 —
+       das passiert manchmal bei iframe-mount, weil Flutter die Auto-Layout-
+       Pfade dort nicht trifft. */
+    flutter-view {
+      display: block;
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    flt-glass-pane {
+      display: block;
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Flutter mountet hier in body — der iframe-Window ist exakt 393×852,
+       also liest Flutters MediaQuery diese Größe als Viewport. -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

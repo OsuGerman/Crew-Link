@@ -4,7 +4,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:async/async.dart' show DelegatingStreamSink;
-import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart' show UserCredential;
+import 'package:firebase_database/firebase_database.dart' show FirebaseDatabase;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -12,14 +13,17 @@ import 'package:stream_channel/stream_channel.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'app/crew_link_app.dart';
-import 'core/firebase/firebase_options.dart';
 import 'core/models/gps_update.dart';
 import 'core/realtime/convoy_socket_client.dart';
+import 'features/auth/application/auth_providers.dart';
+import 'features/auth/data/auth_repository.dart';
 import 'features/convoy/application/breach_notification_watcher.dart';
 import 'features/convoy/application/convoy_providers.dart';
+import 'features/onboarding/application/onboarding_profile_notifier.dart';
 import 'features/push_to_talk/application/ptt_providers.dart';
 import 'features/push_to_talk/data/ptt_channel.dart';
 import 'features/push_to_talk/data/ptt_repository.dart';
+import 'features/push_to_talk/data/webrtc_ptt_receiver.dart';
 
 // ─── Demo-Daten ──────────────────────────────────────────────────────────────
 
@@ -348,27 +352,99 @@ class _NoopPttChannel extends PttChannel {
   Stream<Uint8List> get frames => const Stream.empty();
 }
 
+// ─── Auth-Mock — kein Firebase auf Web ───────────────────────────────────────
+
+class _FakeUserCredential implements UserCredential {
+  @override
+  dynamic noSuchMethod(Invocation i) => null;
+}
+
+/// Spielt Apple-Sign-In nach 250 ms erfolgreich vor und signalisiert dem
+/// Router via [devSignedInOverrideProvider], dass der Auth-Gate offen ist.
+class _DemoAuthRepository implements AuthRepository {
+  _DemoAuthRepository(this._markSignedIn);
+  final void Function() _markSignedIn;
+
+  @override
+  Future<UserCredential> signInWithApple() async {
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    _markSignedIn();
+    return _FakeUserCredential();
+  }
+
+  @override
+  Future<UserCredential> signInWithEmailAndPassword(String _, String __) async {
+    _markSignedIn();
+    return _FakeUserCredential();
+  }
+
+  @override
+  Future<UserCredential> createUserWithEmailAndPassword(
+      String _, String __) async {
+    _markSignedIn();
+    return _FakeUserCredential();
+  }
+
+  @override
+  Future<void> signOut() async {}
+}
+
+/// Stub-FirebaseDatabase — `FirebaseDatabase.instance` würde auf Web ohne
+/// Firebase.initializeApp() einen JS-Interop-Crash werfen. Dieser Fake wird
+/// `pttReceiverProvider` übergeben und nie wirklich benutzt (Receiver-start
+/// ist no-op'd).
+class _FakeFirebaseDatabase implements FirebaseDatabase {
+  @override
+  dynamic noSuchMethod(Invocation i) => null;
+}
+
+/// No-Op-Receiver — auf Web gibt es kein WebRTC-Signaling per Firebase.
+/// Erbt nur, um die `WebRtcPttReceiver`-Typ-Signatur zu erfüllen.
+class _NoopPttReceiver extends WebRtcPttReceiver {
+  _NoopPttReceiver(String convoyId)
+      : super(
+          convoyId: convoyId,
+          localUserId: 'preview-local',
+          database: _FakeFirebaseDatabase(),
+        );
+
+  @override
+  Future<void> start() async {}
+}
+
+/// In-Memory-Profile-Speicher — umgeht flutter_secure_storage auf Web
+/// (kann in Inkognito/locked-down Browsern hängen). Reicht für die Preview,
+/// State wird sofort als "completed: true" zurückgegeben nach save().
+class _InMemoryOnboardingProfileNotifier extends OnboardingProfileNotifier {
+  @override
+  Future<OnboardingProfile> build() async =>
+      const OnboardingProfile(displayName: '', completed: false);
+
+  @override
+  Future<void> save(String displayName) async {
+    state = AsyncValue.data(
+      OnboardingProfile(displayName: displayName, completed: true),
+    );
+  }
+}
+
 // ─── App-Einstieg ────────────────────────────────────────────────────────────
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase mit den Dummy-Options aus `firebase_options.dart` initialisieren.
-  // Reicht für die JS-Interop-Casts in Web-Plugins (RTDB/Auth) — Network-Calls
-  // werden später still fehlschlagen, aber die UI rendert nicht mehr rot mit
-  // "FirebaseException is not a subtype of JavaScriptObject".
-  try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
-  } catch (_) {
-    // Bei einem Re-Init oder fehlender Web-SDK schlucken — Preview muss laufen.
-  }
+  // Firebase wird auf der Web-Preview komplett übersprungen — RTDB/Auth-
+  // Anteile sind via Provider-Overrides bereits durch No-Ops ersetzt
+  // (s. breachNotificationWatcherProvider). Der Firebase-JS-SDK init
+  // konnte mit Placeholder-Keys den gesamten runApp-Pfad blockieren.
 
   final backend = _InMemoryBackend();
   final mockHttp = _MockHttpClient(backend);
 
   runApp(
-    ProviderScope(
-      overrides: [
+    _PhoneFrame(
+      child: ProviderScope(
+        overrides: [
         authTokenProvider.overrideWithValue('dev-token'),
         selfMemberIdProvider.overrideWithValue(_selfMemberId),
         httpClientProvider.overrideWithValue(mockHttp),
@@ -385,12 +461,54 @@ Future<void> main() async {
         selfLocationStreamProvider
             .overrideWith((_) => _simulatedSelfLocation()),
         pttRepositoryProvider.overrideWith((_) => _NoopPttRepository()),
+        // pttReceiverProvider würde sonst FirebaseDatabase.instance lesen
+        // und auf Web JS-Interop-crashen sobald ein Convoy aktiv wird.
+        pttReceiverProvider.overrideWith(
+          (ref, convoyId) => _NoopPttReceiver(convoyId),
+        ),
+        // Demo-AuthRepository: Apple-Tap → setzt devSignedInOverrideProvider,
+        // damit der Router den Auth-Gate als bestanden behandelt (sonst geht
+        // der Apple-Button auf Web ins Leere — kein Firebase-Backend).
+        authRepositoryProvider.overrideWith(
+          (ref) => _DemoAuthRepository(
+            () => ref.read(devSignedInOverrideProvider.notifier).state = true,
+          ),
+        ),
+        // In-Memory-Profil-Storage: vermeidet flutter_secure_storage-Hänger.
+        onboardingProfileProvider.overrideWith(
+          _InMemoryOnboardingProfileNotifier.new,
+        ),
         // Local notifications + RTDB breach broadcast brauchen Platform-
         // Channels bzw. funktionierende Firebase-Auth — beides nicht da.
         // Watcher als reine No-Op-Resolution, damit kein Init crasht.
         breachNotificationWatcherProvider.overrideWith((ref) {}),
       ],
       child: const CrewLinkApp(),
+      ),
     ),
   );
+}
+
+/// Zentriert die App in einer 393-px-breiten Säule (Phone-Breite). Höhe
+/// folgt der Browser-Viewport-Höhe, damit nichts off-screen rutscht und
+/// der LoginScreen-Spacer-Pattern korrekt bleibt. Außenrum dunkler Filler;
+/// der CSS-Bezel-Overlay aus index.html zeichnet den iPhone-Frame.
+class _PhoneFrame extends StatelessWidget {
+  const _PhoneFrame({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Container(
+        color: const Color(0xFF0A0A0B),
+        alignment: Alignment.center,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 393),
+          child: child,
+        ),
+      ),
+    );
+  }
 }

@@ -9,8 +9,13 @@ final onboardingDevSkipProvider = StateProvider<bool>((ref) => false);
 
 /// `true` once the user has authenticated AND saved their profile stub,
 /// or (in dev mode) explicitly skipped sign-in.
+///
+/// `signedIn` honors auch den [devSignedInOverrideProvider] — sonst landet
+/// die Web-Preview nach dem Profile-Save in einer Loop, weil
+/// `authStateProvider` keinen echten Firebase-User hat.
 final onboardingCompletedProvider = Provider<bool>((ref) {
-  final signedIn = ref.watch(authStateProvider).valueOrNull != null;
+  final signedIn = ref.watch(authStateProvider).valueOrNull != null ||
+      ref.watch(devSignedInOverrideProvider);
   final devSkipped = ref.watch(onboardingDevSkipProvider);
   final profileCompleted =
       ref.watch(onboardingProfileProvider).valueOrNull?.completed ?? false;

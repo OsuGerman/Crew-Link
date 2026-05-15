@@ -16,3 +16,11 @@ flutter/
 
 # Flutter/Dart-Logs aus lokalen Runs (preview.ps1, flutter run)
 *.log
+
+# Claude-Code-CLI runtime state
+.claude/scheduled_tasks.lock
+
+# Build-generierte Files (freezed / json_serializable) — können jederzeit
+# via `flutter pub run build_runner build` re-erzeugt werden.
+*.freezed.dart
+*.g.dart

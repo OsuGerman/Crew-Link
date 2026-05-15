@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 
 import { InProcessFanout, type FanoutAdapter } from './fanout.js';
-import { encodeFrame, inboundFrameSchema } from './wire.js';
+import { encodeFrame, inboundFrameSchema, originatorOf } from './wire.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -121,12 +121,17 @@ function handleFrame(
     return;
   }
 
-  // Anti-impersonation: payload.memberId must match the authenticated
-  // member of the originating connection. Drop the frame otherwise.
-  if (result.data.payload.memberId !== originMemberId) {
+  // Anti-impersonation: the originator field in the payload (memberId on
+  // gps, setBy on waypoint) must match the authenticated member of the
+  // originating connection. Waypoint-clear (payload === null) has no
+  // originator and is accepted as-is from the authenticated sender.
+  // TODO: leader-only enforcement for waypoint frames — requires a
+  // `convoy_members` lookup of the originating member's isLeader flag.
+  const claimedOriginator = originatorOf(result.data);
+  if (claimedOriginator !== null && claimedOriginator !== originMemberId) {
     log.warn(
-      { convoyId, claimed: result.data.payload.memberId, actual: originMemberId },
-      'memberId mismatch — frame dropped',
+      { convoyId, claimed: claimedOriginator, actual: originMemberId },
+      'originator mismatch — frame dropped',
     );
     return;
   }

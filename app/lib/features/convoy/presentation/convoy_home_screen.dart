@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/branding/crew_link_wordmark.dart';
 import '../../../core/models/convoy.dart';
 import '../../beta/presentation/beta_feedback_sheet.dart';
 import '../../legal/presentation/privacy_policy_screen.dart';
@@ -9,12 +10,15 @@ import '../../maps/presentation/convoy_map_screen.dart';
 import '../../vehicle/presentation/vehicle_profile_screen.dart';
 import '../application/convoy_providers.dart';
 import '../application/driver_mode.dart';
+import '../application/waypoint_providers.dart';
 import '../data/convoy_api.dart';
 import 'active_convoy_view.dart';
 import 'convoy_create_sheet.dart';
 import 'convoy_join_sheet.dart';
 import 'driver_active_view.dart';
+import 'hazard_quick_sheet.dart';
 import 'lobby_view.dart';
+import 'route_sheet.dart';
 
 /// Shell widget — owns the Scaffold + AppBar and dispatches into one of
 /// three body views (lobby, active, driver-active). Convoy create/join
@@ -27,10 +31,40 @@ class ConvoyHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final convoy = ref.watch(currentConvoyProvider);
     final driverMode = ref.watch(driverModeProvider);
+    final isLeader = ref.watch(selfIsLeaderProvider);
+    final hasRoute = ref.watch(tourProvider).isNotEmpty;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Crew Link'),
+        title: const CrewLinkWordmark(fontSize: 19),
         actions: [
+          if (convoy != null)
+            // Allen sichtbar — Read-Only-Anzeige für Non-Leader.
+            IconButton(
+              key: const ValueKey('open-route-sheet'),
+              tooltip: hasRoute ? 'Route ändern' : 'Route planen',
+              icon: Icon(
+                Icons.flag_rounded,
+                color: hasRoute
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
+              ),
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => const RouteSheet(),
+              ),
+            ),
+          if (convoy != null)
+            IconButton(
+              key: const ValueKey('open-hazard-sheet'),
+              tooltip: 'Gefahr melden',
+              icon: const Icon(Icons.warning_amber_rounded),
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => HazardQuickSheet(convoy: convoy),
+              ),
+            ),
           if (convoy != null)
             IconButton(
               key: const ValueKey('share-invite'),
@@ -101,25 +135,33 @@ class ConvoyHomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(driverMode ? 12 : 24),
-          child: convoy == null
-              ? LobbyView(
+      body: convoy == null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: LobbyView(
                   onCreate: () => _create(context, ref),
                   onJoin: () => _join(context, ref),
-                )
-              : driverMode
-                  ? DriverModeActiveView(
-                      convoy: convoy,
-                      onLeave: () => _leave(context, ref, convoy),
-                    )
-                  : ActiveConvoyView(
-                      convoy: convoy,
-                      onLeave: () => _leave(context, ref, convoy),
-                    ),
-        ),
-      ),
+                ),
+              ),
+            )
+          : SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: driverMode ? 12 : 16,
+                ),
+                child: driverMode
+                    ? DriverModeActiveView(
+                        convoy: convoy,
+                        onLeave: () => _leave(context, ref, convoy),
+                      )
+                    : ActiveConvoyView(
+                        convoy: convoy,
+                        onLeave: () => _leave(context, ref, convoy),
+                      ),
+              ),
+            ),
     );
   }
 

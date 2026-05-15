@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 part 'convoy_create_steps.dart';
 
 class CreateConvoyResult {
@@ -11,6 +13,9 @@ class CreateConvoyResult {
   final double thresholdMeters;
 }
 
+/// 3-Step-Bottom-Sheet zum Konvoi-Erstellen.
+/// Designvorlage: Design.pdf Frame 5 (Erstellen-Sheet, 3 Schritte mit
+/// Progress-Dots: Name → Warnabstand → Zusammenfassung).
 class ConvoyCreateSheet extends StatefulWidget {
   const ConvoyCreateSheet({super.key});
 
@@ -30,6 +35,13 @@ class _ConvoyCreateSheetState extends State<ConvoyCreateSheet> {
     (1000, '1 km'),
   ];
 
+  static const _titles = ['Konvoi starten', 'Warnabstand', 'Zusammenfassung'];
+  static const _subtitles = [
+    'Wähle einen Namen — den sehen alle die beitreten.',
+    'Ab welchem Abstand soll Crew Link warnen?',
+    'Prüfe nochmal, dann erstellen wir den Konvoi.',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -46,7 +58,12 @@ class _ConvoyCreateSheetState extends State<ConvoyCreateSheet> {
   bool get _nameValid => _nameController.text.trim().isNotEmpty;
 
   void _nextPage() => _pageController.nextPage(
-        duration: const Duration(milliseconds: 260),
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+
+  void _prevPage() => _pageController.previousPage(
+        duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
       );
 
@@ -59,72 +76,132 @@ class _ConvoyCreateSheetState extends State<ConvoyCreateSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    const titles = ['Konvoi erstellen', 'Warnabstand', 'Zusammenfassung'];
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        24, 16, 24,
-        MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(titles[_step], style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (var i = 0; i < 3; i++)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: i == _step ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: i == _step
-                        ? scheme.primary
-                        : scheme.onSurfaceVariant.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.md, AppSpacing.xl,
+          MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Pull-handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceOutline,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 180,
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              onPageChanged: (i) => setState(() => _step = i),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            // Section-label "STEP X · ..."
+            Text(
+              'SCHRITT ${_step + 1} · ${_titles[_step].toUpperCase()}',
+              style: AppTextStyles.sectionLabel,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            // Big title
+            Text(
+              _titles[_step],
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            // Subtitle
+            Text(
+              _subtitles[_step],
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.45,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            // Progress dots
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _NameStep(
-                  controller: _nameController,
-                  onSubmitted: _nameValid ? _nextPage : null,
-                ),
-                _ThresholdStep(
-                  value: _thresholdMeters,
-                  options: _thresholdOptions,
-                  onChanged: (v) => setState(() => _thresholdMeters = v),
-                ),
-                _ConfirmStep(
-                  name: _nameController.text.trim(),
-                  thresholdMeters: _thresholdMeters,
+                for (var i = 0; i < 3; i++)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOut,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: i == _step ? 28 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: i == _step
+                          ? AppColors.orange
+                          : AppColors.surfaceOutline,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            // Step content
+            SizedBox(
+              height: 196,
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                onPageChanged: (i) => setState(() => _step = i),
+                children: [
+                  _NameStep(
+                    controller: _nameController,
+                    onSubmitted: _nameValid ? _nextPage : null,
+                  ),
+                  _ThresholdStep(
+                    value: _thresholdMeters,
+                    options: _thresholdOptions,
+                    onChanged: (v) => setState(() => _thresholdMeters = v),
+                  ),
+                  _ConfirmStep(
+                    name: _nameController.text.trim(),
+                    thresholdMeters: _thresholdMeters,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            // CTA row: Zurück + Primary
+            Row(
+              children: [
+                if (_step > 0)
+                  Expanded(
+                    child: OutlinedButton(
+                      key: const ValueKey('convoy-create-back-btn'),
+                      onPressed: _prevPage,
+                      child: const Text('Zurück'),
+                    ),
+                  ),
+                if (_step > 0) const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  flex: _step > 0 ? 2 : 1,
+                  child: FilledButton(
+                    key: ValueKey('convoy-create-step$_step-btn'),
+                    onPressed: switch (_step) {
+                      0 => _nameValid ? _nextPage : null,
+                      1 => _nextPage,
+                      _ => _submit,
+                    },
+                    child: Text(_step < 2 ? 'Weiter' : 'Konvoi erstellen'),
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton(
-            key: ValueKey('convoy-create-step$_step-btn'),
-            onPressed: switch (_step) {
-              0 => _nameValid ? _nextPage : null,
-              1 => _nextPage,
-              _ => _submit,
-            },
-            child: Text(_step < 2 ? 'Weiter' : 'Erstellen'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

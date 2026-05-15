@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../../../core/branding/crew_link_logo.dart';
+import '../../../core/theme/app_theme.dart';
+
 class OnboardingPage {
   const OnboardingPage({
     required this.key,
@@ -23,43 +26,31 @@ class OnboardingPageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Padding(
       key: ValueKey('onboarding-page-${page.key}'),
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 116,
-            height: 116,
-            decoration: BoxDecoration(
-              color: scheme.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              page.icon,
-              size: 56,
-              color: scheme.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(height: 40),
+          const _HeroLogo(),
+          const SizedBox(height: AppSpacing.xl),
           Text(
             page.title,
-            style: TextStyle(
-              fontSize: 26,
+            style: const TextStyle(
+              fontSize: 28,
               fontWeight: FontWeight.w700,
-              color: scheme.onSurface,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.3,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           Text(
             page.body,
-            style: TextStyle(
-              fontSize: 15,
+            style: const TextStyle(
+              fontSize: 14,
               height: 1.5,
-              color: scheme.onSurfaceVariant,
+              color: AppColors.textSecondary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -69,6 +60,32 @@ class OnboardingPageView extends StatelessWidget {
   }
 }
 
+class _HeroLogo extends StatelessWidget {
+  const _HeroLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 132,
+      height: 132,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.orange.withValues(alpha: 0.22),
+            blurRadius: 60,
+            spreadRadius: 6,
+          ),
+        ],
+      ),
+      child: const CrewLinkLogo(size: 96),
+    );
+  }
+}
+
+/// Pillenförmiger Step-Indicator. Aktiver Dot orange + breit, inaktive
+/// kleine graue Punkte. Animiert beim Wechsel.
 class DotIndicator extends StatelessWidget {
   const DotIndicator({required this.count, required this.current, super.key});
 
@@ -77,20 +94,20 @@ class DotIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         for (var i = 0; i < count; i++)
           AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
             margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: i == current ? 24 : 8,
+            width: i == current ? 28 : 8,
             height: 8,
             decoration: BoxDecoration(
               color: i == current
-                  ? scheme.primary
-                  : scheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  ? AppColors.orange
+                  : AppColors.surfaceOutline,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -119,22 +136,24 @@ class SignInArea extends StatelessWidget {
         if (error != null) ...[
           Text(
             error!,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.error,
+            style: const TextStyle(
+              color: AppColors.danger,
               fontSize: 13,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
         ],
         SizedBox(
           width: double.infinity,
-          height: 52,
+          height: 54,
           child: signing
               ? const Center(child: CircularProgressIndicator())
               : SignInWithAppleButton(
                   key: const ValueKey('onboarding-signin-apple'),
                   onPressed: onSignIn,
+                  style: SignInWithAppleButtonStyle.white,
+                  borderRadius: BorderRadius.circular(AppRadii.button),
                 ),
         ),
       ],

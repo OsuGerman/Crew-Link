@@ -7,6 +7,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../core/observability/app_logger.dart';
 import '../../../core/observability/funnel_analytics.dart';
 import '../../../core/observability/observability_bootstrap.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../auth/data/auth_repository.dart';
 import '../application/onboarding_profile_notifier.dart';
 import '../application/onboarding_state.dart';
@@ -18,16 +19,17 @@ const _siwaPage = OnboardingPage(
   key: 'siwa',
   icon: Icons.route,
   title: 'Willkommen bei Crew Link',
-  body: 'Koordiniere deinen Konvoi live. Sieh, wo dein Kreis fährt, '
-      'sprich mit allen mit einem Tap.',
+  body: 'Koordiniere deinen Konvoi live. Sieh, wo dein\n'
+      'Kreis fährt, sprich mit allen mit einem Tap.',
   primaryLabel: '',
 );
 
 const _ctaPage = OnboardingPage(
   key: 'convoy-cta',
   icon: Icons.group,
-  title: 'Bereit für deinen ersten Konvoi?',
-  body: 'Erstelle einen neuen Konvoi oder tritt einem bestehenden bei.',
+  title: 'Bereit für deinen\nersten Konvoi?',
+  body: 'Erstelle einen neuen Konvoi oder tritt einem\n'
+      'bestehenden bei.',
   primaryLabel: '',
 );
 

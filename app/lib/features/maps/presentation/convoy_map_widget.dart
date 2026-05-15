@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../application/maps_providers.dart';
 import '../domain/map_viewport.dart';
 
@@ -137,6 +139,12 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // MapLibre auf Flutter Web hat Style-Load-Race-Conditions auf 3.41+
+    // (style-Callback feuert nie, Layer-Init lädt unendlich). Für die
+    // Web-Preview rendern wir einen Platzhalter; native bleibt unverändert.
+    if (kIsWeb) {
+      return const _WebMapPlaceholder();
+    }
     final scheme = Theme.of(context).colorScheme;
     ref.listen(memberMarkersProvider, (_, next) => _syncMarkers(next));
     final markers = ref.watch(memberMarkersProvider);
@@ -184,6 +192,91 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Web-Preview-Stand-In für die echte Maplibre-Karte. Echte Karten-
+/// Integration läuft nur auf iOS/Android — Web hat in maplibre_gl 0.26
+/// Race-Conditions beim Style-Loading.
+class _WebMapPlaceholder extends ConsumerWidget {
+  const _WebMapPlaceholder();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final markers = ref.watch(memberMarkersProvider);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.orange.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.map_outlined,
+                color: AppColors.orange,
+                size: 36,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const Text(
+              'Live-Karte',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '${markers.length} Mitglied${markers.length == 1 ? '' : 'er'} live · '
+              'Native-Map auf iOS/Android',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceHigh,
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                border: Border.all(
+                  color: AppColors.surfaceOutline,
+                  width: 0.6,
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.info_outline,
+                      color: AppColors.orange, size: 18),
+                  SizedBox(width: AppSpacing.sm),
+                  Text(
+                    'Im echten Build: MapLibre + GPS-Pins',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

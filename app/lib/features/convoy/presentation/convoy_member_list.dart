@@ -5,11 +5,13 @@ import '../../../core/models/convoy.dart';
 import '../../../core/models/convoy_member.dart';
 import '../../../core/models/gps_update.dart';
 import '../../../core/models/vehicle_profile.dart';
+import '../../../core/theme/app_theme.dart';
+import 'member_detail_sheet.dart';
 
-/// Driver-friendly live member list with avatar, distance-from-self,
-/// "Du" / "Anführer" badges and last-seen timestamp. Source of truth:
-/// the live position snapshot from the WebSocket session; convoy.members
-/// is layered on top to provide display names and leader status.
+/// Live-Mitgliederliste — dunkles Theme, kompakte Rows mit konsistentem
+/// Farb-Dot pro Member-ID, Name + Vehicle/Mod-Info links, Distanz rechts.
+///
+/// Designvorlage: Design.pdf Frame 5 (Member-Liste unter dem Radar).
 class ConvoyMemberList extends StatelessWidget {
   const ConvoyMemberList({
     super.key,
@@ -25,23 +27,46 @@ class ConvoyMemberList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = _entries();
-    return Card(
+    return Container(
       key: const ValueKey('live-members-tile'),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        border: Border.all(color: AppColors.surfaceOutline, width: 0.6),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ListTile(
-            leading: const Icon(Icons.people_outline),
-            title: Text(
-              '${convoy.members.length} Mitglieder im Konvoi',
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm,
             ),
-            subtitle: Text(
-              entries.isEmpty
-                  ? 'noch keine Live-GPS-Daten'
-                  : '${entries.length} live',
+            child: Row(
+              children: [
+                Text(
+                  'MITGLIEDER',
+                  style: AppTextStyles.sectionLabel.copyWith(fontSize: 11),
+                ),
+                const Spacer(),
+                Text(
+                  entries.isEmpty
+                      ? 'kein GPS'
+                      : '${entries.length} live · ${convoy.members.length} total',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
-          if (entries.isNotEmpty) const Divider(height: 1),
+          if (entries.isNotEmpty)
+            const Divider(
+              color: AppColors.surfaceOutline,
+              height: 0.6,
+              thickness: 0.6,
+            ),
           for (final entry in entries) _MemberRow(entry: entry),
         ],
       ),
@@ -117,22 +142,27 @@ class _MemberRow extends StatelessWidget {
 
   final _Entry entry;
 
+  /// Erweiterte Member-Farb-Palette (konsistent zur Radar-View).
+  /// Hash-basierte Zuordnung — jeder Member bekommt die gleiche Farbe in
+  /// Radar, Liste und Map.
   static const _palette = <Color>[
-    Color(0xFF3949AB),
-    Color(0xFF00897B),
-    Color(0xFFD81B60),
-    Color(0xFFFB8C00),
-    Color(0xFF6D4C41),
-    Color(0xFF5E35B1),
+    Color(0xFFFF6B2C), // Brand orange — für self überspringen
+    Color(0xFF4F8DFD), // Cyan-blue
+    Color(0xFF22C55E), // Green
+    Color(0xFFE94560), // Coral-red
+    Color(0xFFA855F7), // Purple
+    Color(0xFFFFC53D), // Amber
+    Color(0xFF06B6D4), // Teal
+    Color(0xFFEC4899), // Pink
   ];
-  static const double _msToKmhFactor = 3.6;
 
-  Color _avatarColor() {
-    final hash = entry.memberId.codeUnits.fold<int>(
-      0,
-      (acc, c) => acc + c,
-    );
-    return _palette[hash % _palette.length];
+  static const _msToKmhFactor = 3.6;
+
+  Color _memberColor() {
+    if (entry.isSelf) return AppColors.orange;
+    final hash = entry.memberId.codeUnits.fold<int>(0, (a, c) => a + c);
+    // Skip index 0 (orange) for non-self to avoid color clash with self.
+    return _palette[(hash % (_palette.length - 1)) + 1];
   }
 
   String _initials() {
@@ -145,96 +175,161 @@ class _MemberRow extends StatelessWidget {
   }
 
   String _distanceLabel() {
-    if (entry.isSelf) return 'Du · hier';
+    if (entry.isSelf) return 'Du';
     final d = entry.distanceMeters;
-    if (d == null) return 'Distanz wird ermittelt';
-    if (d < 1000) return '${d.toStringAsFixed(0)} m entfernt';
-    return '${(d / 1000).toStringAsFixed(1)} km entfernt';
+    if (d == null) return '–';
+    if (d < 1000) return '${d.toStringAsFixed(0)} m';
+    return '${(d / 1000).toStringAsFixed(1)} km';
+  }
+
+  String? _vehicleLabel() {
+    final v = entry.vehicle;
+    if (v == null) return null;
+    if (v.mods.isEmpty) return v.headline;
+    return '${v.headline} · ${v.mods.length} Mods';
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final color = _memberColor();
     final speedKmh = entry.update.speedMps * _msToKmhFactor;
-    final hh = entry.update.timestamp.toLocal().hour.toString().padLeft(2, '0');
-    final mm = entry.update.timestamp.toLocal().minute.toString().padLeft(2, '0');
-    final ss = entry.update.timestamp.toLocal().second.toString().padLeft(2, '0');
-
-    return ListTile(
+    final vehicleLabel = _vehicleLabel();
+    return Material(
       key: ValueKey('member-row-${entry.memberId}'),
-      leading: CircleAvatar(
-        backgroundColor: _avatarColor(),
-        foregroundColor: Colors.white,
-        child: Text(
-          _initials(),
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
-      title: Row(
-        children: [
-          Flexible(
-            child: Text(
-              entry.displayName,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => MemberDetailSheet(
+            member: ConvoyMember(
+              id: entry.memberId,
+              displayName: entry.displayName,
+              vehicle: entry.vehicle,
+              isLeader: entry.isLeader,
             ),
+            memberColor: color,
           ),
-          if (entry.isSelf) _Badge(label: 'Du', color: scheme.primary),
-          if (entry.isLeader)
-            _Badge(label: 'Anführer', color: scheme.tertiary),
-        ],
+        ),
+        child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm + 2,
       ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text('${_distanceLabel()} · ${speedKmh.toStringAsFixed(0)} km/h'),
-          if (entry.vehicle != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                entry.vehicle!.mods.isEmpty
-                    ? entry.vehicle!.headline
-                    : '${entry.vehicle!.headline} · ${entry.vehicle!.mods.length} Mods',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: scheme.onSurfaceVariant,
-                ),
+          // Color-Dot + Initial-Avatar
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+              border: Border.all(color: color, width: 1.6),
+            ),
+            child: Text(
+              _initials(),
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
               ),
             ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          // Name + Vehicle/Speed
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        entry.displayName,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    if (entry.isLeader)
+                      const _Badge(label: 'Leader', color: AppColors.orange),
+                    if (entry.isSelf)
+                      const _Badge(label: 'Du', color: AppColors.success),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  vehicleLabel == null
+                      ? '${speedKmh.toStringAsFixed(0)} km/h'
+                      : '$vehicleLabel · ${speedKmh.toStringAsFixed(0)} km/h',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                    height: 1.3,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          // Distance pill
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm + 2,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceHigh,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+            ),
+            child: Text(
+              _distanceLabel(),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
         ],
       ),
-      trailing: Text(
-        '$hh:$mm:$ss',
-        style: const TextStyle(
-          fontFeatures: [FontFeature.tabularFigures()],
-          color: Colors.black54,
-        ),
-      ),
-    );
+        ),  // Padding
+      ),  // InkWell
+    );  // Material
   }
 }
 
 class _Badge extends StatelessWidget {
   const _Badge({required this.label, required this.color});
-
   final String label;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(left: 6),
+      margin: const EdgeInsets.only(left: AppSpacing.sm),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 0.6),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
         ),
       ),
     );

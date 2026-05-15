@@ -45,17 +45,23 @@ class _RouterRefreshNotifier extends ChangeNotifier {
       onboardingProfileProvider,
       (_, __) => notifyListeners(),
     );
+    _subDevSignedIn = ref.listen<bool>(
+      devSignedInOverrideProvider,
+      (_, __) => notifyListeners(),
+    );
   }
 
   late final ProviderSubscription<bool> _subOnboarding;
   late final ProviderSubscription<AsyncValue<User?>> _subAuth;
   late final ProviderSubscription<AsyncValue<OnboardingProfile>> _subProfile;
+  late final ProviderSubscription<bool> _subDevSignedIn;
 
   @override
   void dispose() {
     _subOnboarding.close();
     _subAuth.close();
     _subProfile.close();
+    _subDevSignedIn.close();
     super.dispose();
   }
 }
@@ -82,7 +88,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final authAsync = ref.read(authStateProvider);
       if (authAsync.isLoading) return null;
 
-      final signedIn = authAsync.valueOrNull != null;
+      // devSignedInOverrideProvider ist eine Web-Preview-Hilfe (kein Firebase
+      // → kein echter User; trotzdem soll der Auth-Gate passierbar sein).
+      // Produktion lässt das auf false; Override siehe main_web_preview.dart.
+      final devSignedIn = ref.read(devSignedInOverrideProvider);
+      final signedIn = authAsync.valueOrNull != null || devSignedIn;
       final atLogin = state.matchedLocation == AppRoutes.login;
 
       if (!signedIn) {
