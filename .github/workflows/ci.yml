@@ -7,6 +7,16 @@ on:
   schedule:
     # Weekly TestFlight build every Monday 06:00 UTC
     - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      build_name:
+        description: 'Version (z.B. 1.0.0)'
+        required: false
+        default: '0.1.0'
+      changelog:
+        description: 'TestFlight Release Notes (overrides git log)'
+        required: false
+        default: ''
 
 jobs:
   app:
@@ -64,8 +74,9 @@ jobs:
   testflight:
     name: TestFlight upload
     runs-on: macos-latest
-    # Only on direct pushes to main (not PRs, not forks)
-    if: (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main' && github.repository == github.event.repository.full_name
+    # push to main, scheduled weekly build, oder manueller workflow_dispatch.
+    # Auf PRs + Forks NIE — würde Secrets exposen.
+    if: (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && github.repository == github.event.repository.full_name
     needs: [app, ios]
     defaults:
       run:
@@ -79,7 +90,8 @@ jobs:
       ITC_TEAM_ID:      ${{ secrets.ITC_TEAM_ID }}
       TEAM_ID:          ${{ secrets.TEAM_ID }}
       BUILD_NUMBER:     ${{ github.run_number }}
-      BUILD_NAME:       "1.0.0"
+      BUILD_NAME:       ${{ github.event.inputs.build_name || '0.1.0' }}
+      TF_CHANGELOG:     ${{ github.event.inputs.changelog || '' }}
     steps:
       - uses: actions/checkout@v4
         with:

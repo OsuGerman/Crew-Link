@@ -57,15 +57,22 @@ platform :ios do
       xcargs:    "FLUTTER_BUILD_NAME=#{build_name} FLUTTER_BUILD_NUMBER=#{build_number}"
     )
 
-    # Upload — skip processing wait so CI lane finishes quickly
-    upload_to_testflight(
-      skip_waiting_for_build_processing: true,
-      changelog: changelog_from_git_commits(
+    # TF_CHANGELOG kommt aus workflow_dispatch-Input; sonst Git-Log der
+    # letzten 15 Commits ohne Merge-Commits.
+    changelog_text = ENV["TF_CHANGELOG"].to_s.strip
+    if changelog_text.empty?
+      changelog_text = changelog_from_git_commits(
         pretty:         "- %s",
         date_format:    "short",
         commits_count:  15,
         merge_commit_filtering: "exclude_merges"
       )
+    end
+
+    # Upload — skip processing wait so CI lane finishes quickly
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      changelog: changelog_text
     )
   end
 

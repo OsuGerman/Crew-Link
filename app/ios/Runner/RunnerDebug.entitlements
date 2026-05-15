@@ -7,7 +7,7 @@
 		<string>Default</string>
 	</array>
 	<key>aps-environment</key>
-	<string>production</string>
+	<string>development</string>
 	<key>com.apple.developer.carplay-maps</key>
 	<true/>
 	<key>com.apple.developer.carplay-audio</key>
