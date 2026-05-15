@@ -1,0 +1,139 @@
+require "base64"
+
+default_platform(:ios)
+
+platform :ios do
+  before_all do
+    setup_ci if ENV["CI"]
+    if ENV["CI"]
+      app_store_connect_api_key(
+        key_id:                ENV.fetch("ASC_KEY_ID"),
+        issuer_id:             ENV.fetch("ASC_ISSUER_ID"),
+        key_content:           ENV.fetch("ASC_KEY_CONTENT"),
+        is_key_content_base64: true,
+        in_house:              false
+      )
+    end
+  end
+
+  desc "Sync App Store certificates and provisioning profiles via Match"
+  lane :sync_signing do
+    match(type: "appstore", readonly: false)
+  end
+
+  desc "Capture App Store screenshots on all required device simulators"
+  lane :screenshots do
+    # Build Flutter output so the Xcode test target can link against it.
+    sh("cd ../app && flutter build ios --debug --simulator", log: true)
+    # Device list, languages and output_directory come from Snapfile.
+    capture_ios_screenshots(
+      workspace: "app/ios/Runner.xcworkspace",
+      scheme:    "RunnerUITests",
+    )
+  end
+
+  desc "Build signed IPA and upload to TestFlight"
+  lane :beta do
+    # Flutter release build (Dart → native, no codesign yet)
+    sh("cd ../app && flutter build ios --release --no-codesign",
+       log: true)
+
+    # Pull certificates / profiles (read-only on CI, writable locally)
+    match(type: "appstore", readonly: is_ci)
+
+    build_number = ENV.fetch("BUILD_NUMBER", number_of_commits.to_s)
+    build_name   = ENV.fetch("BUILD_NAME", "1.0.0")
+
+    # Increment build number so TestFlight accepts repeated uploads
+    increment_build_number(
+      build_number: build_number,
+      xcodeproj:    "app/ios/Runner.xcodeproj"
+    )
+
+    # Sign and archive
+    build_app(
+      workspace: "app/ios/Runner.xcworkspace",
+      scheme:    "Runner",
+      xcargs:    "FLUTTER_BUILD_NAME=#{build_name} FLUTTER_BUILD_NUMBER=#{build_number}"
+    )
+
+    # Upload — skip processing wait so CI lane finishes quickly
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      changelog: changelog_from_git_commits(
+        pretty:         "- %s",
+        date_format:    "short",
+        commits_count:  15,
+        merge_commit_filtering: "exclude_merges"
+      )
+    )
+  end
+
+  desc "Add / update the 20 internal beta testers from fastlane/testers.csv"
+  lane :invite_testers do
+    add_testers(
+      testers_file_path: "./fastlane/testers.csv",
+      groups:            ["Interne Beta"]
+    )
+  end
+
+  desc "Build, upload to TestFlight and (re-)invite all testers in one step"
+  lane :beta_with_testers do
+    beta
+    invite_testers
+  end
+
+  desc "Upload App Store metadata and screenshots without submitting for review"
+  lane :upload_metadata do
+    deliver(
+      skip_binary_upload: true,
+      skip_screenshots:   false,
+      submit_for_review:  false,
+      force:              true
+    )
+  end
+
+  desc "Submit the current App Store version for review (metadata must be uploaded first)"
+  lane :submit_for_review do
+    deliver(
+      skip_binary_upload:                 true,
+      skip_screenshots:                   true,
+      skip_metadata:                      true,
+      submit_for_review:                  true,
+      automatic_release:                  false,
+      force:                              true,
+      precheck_include_in_app_purchases:  false
+    )
+  end
+
+  desc "Full App Store release: build IPA, upload metadata + screenshots, submit for review"
+  lane :release do
+    UI.important("Ensure CarPlay entitlements are approved before running this lane.")
+    UI.important("Checklist: fastlane/../store/carplay_review_notes.md")
+
+    match(type: "appstore", readonly: is_ci)
+
+    build_number = ENV.fetch("BUILD_NUMBER", number_of_commits.to_s)
+    build_name   = ENV.fetch("BUILD_NAME", "1.0.0")
+
+    sh("cd ../app && flutter build ios --release --no-codesign", log: true)
+
+    increment_build_number(
+      build_number: build_number,
+      xcodeproj:    "app/ios/Runner.xcodeproj"
+    )
+
+    build_app(
+      workspace: "app/ios/Runner.xcworkspace",
+      scheme:    "Runner",
+      xcargs:    "FLUTTER_BUILD_NAME=#{build_name} FLUTTER_BUILD_NUMBER=#{build_number}"
+    )
+
+    deliver(
+      submit_for_review:                  true,
+      automatic_release:                  false,
+      force:                              true,
+      precheck_include_in_app_purchases:  false
+    )
+  end
+end

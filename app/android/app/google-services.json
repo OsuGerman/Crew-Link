@@ -1,0 +1,31 @@
+{
+  "_comment": "Replace all REPLACE_* values by running: flutterfire configure --project=<your-firebase-project-id>",
+  "project_info": {
+    "project_number": "REPLACE_SENDER_ID",
+    "firebase_url": "https://crew-link-default-rtdb.firebaseio.com",
+    "project_id": "crew-link",
+    "storage_bucket": "crew-link.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:REPLACE:android:REPLACE",
+        "android_client_info": {
+          "package_name": "com.crewlink.crew_link"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "REPLACE_WITH_ANDROID_API_KEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,1 @@
+Motorrad,Konvoi,Navigation,CarPlay,Walkie-Talkie,GPS,Gruppe,Motorradfahrer,Push-to-Talk,Echtzeit

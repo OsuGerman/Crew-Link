@@ -1,0 +1,4 @@
+app_identifier "de.crewlink.app"
+apple_id "adrian.mirwaldt21@gmail.com"
+itc_team_id ENV["ITC_TEAM_ID"]
+team_id ENV["TEAM_ID"]

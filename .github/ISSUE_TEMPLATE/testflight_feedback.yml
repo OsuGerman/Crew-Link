@@ -1,0 +1,81 @@
+name: TestFlight Beta Feedback
+description: Feedback, Bug oder Feature-Wunsch zur Crew Link Beta
+labels: ["beta-feedback"]
+body:
+  - type: input
+    id: build
+    attributes:
+      label: Build-Nummer
+      description: "App öffnen → Einstellungen → Versionsnummer (z.B. 1.0.0 (42))"
+      placeholder: "1.0.0 (42)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Art des Feedbacks
+      options:
+        - Bug / Absturz
+        - Performance-Problem
+        - UX / Design
+        - Feature-Wunsch
+        - Sonstiges
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Gerät & iOS-Version
+      options:
+        - iPhone 15 Pro / iOS 17
+        - iPhone 15 / iOS 17
+        - iPhone 14 Pro / iOS 17
+        - iPhone 14 / iOS 17
+        - iPhone 13 / iOS 16
+        - iPhone 12 / iOS 16
+        - Anderes (im Beschreibungsfeld nennen)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: carplay
+    attributes:
+      label: CarPlay betroffen?
+      options:
+        - Nein
+        - Ja
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Beschreibung
+      description: "Was ist passiert? Was hast du erwartet?"
+      placeholder: |
+        Schritte zum Reproduzieren:
+        1. ...
+        2. ...
+
+        Erwartet: ...
+        Tatsächlich: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Screenshots / Logs (optional)
+      description: "Screenshots aus TestFlight oder Crash-Logs direkt hier einfügen."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Bestätigung
+      options:
+        - label: Ich teste die aktuelle Build-Nummer aus TestFlight (nicht eine ältere).
+          required: true

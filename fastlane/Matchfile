@@ -1,0 +1,5 @@
+git_url(ENV.fetch("MATCH_GIT_URL"))
+storage_mode("git")
+type("appstore")
+app_identifier("de.crewlink.app")
+username("adrian.mirwaldt21@gmail.com")

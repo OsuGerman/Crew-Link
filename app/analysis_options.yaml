@@ -1,0 +1,44 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - flutter/**
+    - build/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    invalid_annotation_target: ignore
+
+linter:
+  rules:
+    # Stil
+    - prefer_single_quotes
+    - prefer_const_constructors
+    - prefer_const_literals_to_create_immutables
+    - prefer_const_declarations
+    - prefer_final_locals
+    - prefer_final_fields
+    - directives_ordering
+    - sort_pub_dependencies
+    # Korrektheit
+    - unawaited_futures
+    - cancel_subscriptions
+    - close_sinks
+    - avoid_dynamic_calls
+    - avoid_print
+    - avoid_slow_async_io
+    - use_build_context_synchronously
+    # Flutter-Performance
+    - avoid_unnecessary_containers
+    - use_decorated_box
+    - use_colored_box
+    - sized_box_for_whitespace
+    - sized_box_shrink_expand
+    # Qualität
+    - unnecessary_lambdas
+    - unnecessary_statements
+    - avoid_redundant_argument_values

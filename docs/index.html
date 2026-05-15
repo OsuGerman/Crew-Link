@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crew Link – Motorradkonvoi in Echtzeit</title>
+  <meta name="description" content="Crew Link hält deinen Konvoi zusammen. Live-Karte, Abstandswarnung, Push-to-Talk und CarPlay – alles in einer App.">
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --surface: #1a1a1a;
+      --accent: #ff6b35;
+      --text: #e8e8e8;
+      --muted: #888;
+      --border: #2e2e2e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 5rem 1.5rem 4rem;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .hero .badge {
+      display: inline-block;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: .3rem .8rem;
+      border-radius: 999px;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 6vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto 2.5rem;
+    }
+    .app-store-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .6rem;
+      background: var(--text);
+      color: #0d0d0d;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: .85rem 1.8rem;
+      border-radius: 12px;
+      transition: opacity .15s;
+    }
+    .app-store-btn:hover { opacity: .88; text-decoration: none; }
+    .app-store-btn svg { flex-shrink: 0; }
+
+    /* ── Features ── */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 1.5rem 5rem;
+    }
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+    }
+    .feature .icon {
+      width: 2rem;
+      height: 2rem;
+      margin-bottom: .75rem;
+      color: var(--accent);
+    }
+    .feature .icon svg {
+      width: 100%;
+      height: 100%;
+      fill: currentColor;
+    }
+    .feature h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: .4rem;
+      color: var(--accent);
+    }
+    .feature p { font-size: .92rem; color: var(--muted); }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 1.5rem 1rem;
+      font-size: .85rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <section class="hero">
+    <span class="badge">Demnächst im App Store</span>
+    <h1>Dein Konvoi.<br><span>Immer zusammen.</span></h1>
+    <p>Crew Link hält deine Motorrad-Gruppe in Echtzeit synchron – Live-Karte, Abstandswarnung, Push-to-Talk und CarPlay in einer App.</p>
+    <a class="app-store-btn" href="#">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+      </svg>
+      Im App Store herunterladen
+    </a>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <div class="icon">
+        <!-- map pin -->
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+      </div>
+      <h3>Live-Karte</h3>
+      <p>Alle Konvoi-Mitglieder auf einer Karte. GPS-Updates in unter 2 Sekunden.</p>
+    </div>
+    <div class="feature">
+      <div class="icon">
+        <!-- warning triangle -->
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+      </div>
+      <h3>Abstandswarnung</h3>
+      <p>Automatische Benachrichtigung aller Mitglieder, wenn jemand mehr als 500 m zurückfällt.</p>
+    </div>
+    <div class="feature">
+      <div class="icon">
+        <!-- microphone -->
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+      </div>
+      <h3>Push-to-Talk</h3>
+      <p>Walkie-Talkie für deine Gruppe. Opus über WebRTC – unter 300 ms Latenz.</p>
+    </div>
+    <div class="feature">
+      <div class="icon">
+        <!-- display / screen -->
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z"/></svg>
+      </div>
+      <h3>CarPlay</h3>
+      <p>Konvoi-Status und PTT-Taste direkt auf dem Fahrzeugdisplay. Hände am Lenker.</p>
+    </div>
+    <div class="feature">
+      <div class="icon">
+        <!-- directions bike / two-wheeler -->
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9 12l1.93 1.93L9.42 16H6v2h4l2.44-2.44.74.74L15 18.17V22h2v-4.5l-3.28-3.28.97-2.22C16.18 14 17.97 15 20 15v-2c-1.68 0-3.13-.99-3.81-2.43L15.19 9c-.34-.63-1.01-1-1.71-1h-.03C12.56 8 12 8.56 12 9.26V9.5L9 12zm-5.5 3c-1.93 0-3.5 1.57-3.5 3.5S1.57 22 3.5 22 7 20.43 7 18.5 5.43 15 3.5 15zm0 5c-.83 0-1.5-.67-1.5-1.5S2.67 17 3.5 17s1.5.67 1.5 1.5S4.33 20 3.5 20zm17 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm0-5c-1.93 0-3.5 1.57-3.5 3.5s1.57 3.5 3.5 3.5S24 20.43 24 18.5 22.43 15 20.5 15z"/></svg>
+      </div>
+      <h3>Fahrzeugprofile</h3>
+      <p>Motorrad, Baujahr, Mods – alle im Konvoi sehen, was du fährst.</p>
+    </div>
+    <div class="feature">
+      <div class="icon">
+        <!-- flash / bolt -->
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+      </div>
+      <h3>3-Tap-Onboarding</h3>
+      <p>Konvoi erstellen, Link teilen, losfahren. Beitreten geht genauso schnell.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      &copy; 2026 Adrian Mirwaldt &nbsp;·&nbsp;
+      <a href="/privacy">Datenschutz / Privacy</a> &nbsp;·&nbsp;
+      <a href="mailto:adrian.mirwaldt21@gmail.com">Kontakt</a>
+    </p>
+  </footer>
+
+</body>
+</html>

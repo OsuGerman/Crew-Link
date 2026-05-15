@@ -1,0 +1,31 @@
+# fastlane snapshot configuration for Crew Link
+# Run via: fastlane screenshots
+# Requires: Xcode, iOS Simulators for the device types below.
+# Flutter build must run first: flutter build ios --release --no-codesign
+
+# Devices (covers all required App Store slots)
+devices([
+  "iPhone 16 Pro Max",   # 6.9" slot  (required)
+  "iPhone 12 Pro Max",   # 6.5" slot  (required)
+  "iPhone 8 Plus",       # 5.5" slot  (recommended)
+  "iPad Pro (12.9-inch) (6th generation)", # iPad 12.9" (recommended)
+])
+
+languages([
+  "de-DE",
+  "en-US",
+])
+
+# XCUITest scheme that drives the Flutter integration_test
+scheme("RunnerUITests")
+output_directory("./fastlane/screenshots")
+clear_previous_screenshots(true)
+
+# Keep the simulator running between language iterations for speed
+erase_simulator(false)
+reinstall_app(false)
+
+# The integration test binary is built from app/integration_test/screenshots_test.dart
+# via: flutter build ios --release --no-codesign
+#      xcodebuild test-without-building -scheme RunnerUITests ...
+# snapshot handles this via the build_for_testing / test_without_building xcodebuild actions.

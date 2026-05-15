@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly TestFlight build every Monday 06:00 UTC
+    - cron: '0 6 * * 1'
+
+jobs:
+  app:
+    name: Flutter app (analyze + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: stable
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  android:
+    name: Android debug build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: stable
+      - run: flutter pub get
+      - run: flutter build apk --debug
+
+  ios:
+    name: iOS debug build (no codesign)
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: stable
+      - run: flutter pub get
+      # No codesign — validates project + Swift compiles end-to-end.
+      # CarPlay entitlement check happens after signing, on device.
+      - run: flutter build ios --debug --no-codesign
+
+  testflight:
+    name: TestFlight upload
+    runs-on: macos-latest
+    # Only on direct pushes to main (not PRs, not forks)
+    if: (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main' && github.repository == github.event.repository.full_name
+    needs: [app, ios]
+    defaults:
+      run:
+        working-directory: .
+    env:
+      MATCH_GIT_URL:    ${{ secrets.MATCH_GIT_URL }}
+      MATCH_PASSWORD:   ${{ secrets.MATCH_PASSWORD }}
+      ASC_KEY_ID:       ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID:    ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_CONTENT:  ${{ secrets.ASC_KEY_CONTENT }}
+      ITC_TEAM_ID:      ${{ secrets.ITC_TEAM_ID }}
+      TEAM_ID:          ${{ secrets.TEAM_ID }}
+      BUILD_NUMBER:     ${{ github.run_number }}
+      BUILD_NAME:       "1.0.0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # needed for changelog_from_git_commits
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: stable
+
+      - name: Install Flutter dependencies
+        run: cd app && flutter pub get
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Install CocoaPods
+        run: cd app/ios && pod install --repo-update
+
+      - name: Fastlane beta
+        run: bundle exec fastlane ios beta
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crew_link
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d crew_link"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/crew_link
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test

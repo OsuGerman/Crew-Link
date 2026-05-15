@@ -1,0 +1,17 @@
+app_identifier "de.crewlink.app"
+apple_id       "adrian.mirwaldt21@gmail.com"
+
+# TestFlight group for the 20-person internal beta
+groups                   ["Interne Beta"]
+distribute_external      false
+notify_external_testers  false
+
+# Automatically expire old builds so testers always see the latest
+expire_previous_builds true
+
+# Localised beta app description shown in TestFlight
+localized_build_info({
+  "default" => {
+    whats_new: "Aktuelle Beta – Feedback bitte via GitHub Issues eintragen."
+  }
+})

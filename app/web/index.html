@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Crew Link — Konvoi-App Demo">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="crew_link">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Crew Link — iOS Preview</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    :root {
+      --screen-width: 393px;
+      --screen-height: 852px;
+      --bezel-pad: 12px;
+      --bezel-radius: 56px;
+      --screen-radius: 47px;
+      --status-bar-height: 59px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top, #2a2c34 0%, #14151a 70%);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+                   'Segoe UI', Roboto, sans-serif;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+      gap: 16px;
+    }
+
+    .stage-label {
+      color: #c8c9cd;
+      font-size: 13px;
+      letter-spacing: 0.4px;
+      text-align: center;
+      opacity: 0.7;
+    }
+
+    .stage-label strong { color: #fff; }
+
+    .device {
+      position: relative;
+      width: calc(var(--screen-width) + var(--bezel-pad) * 2);
+      height: calc(var(--screen-height) + var(--bezel-pad) * 2);
+      padding: var(--bezel-pad);
+      background:
+        linear-gradient(160deg, #2c2d31 0%, #18191c 100%);
+      border-radius: var(--bezel-radius);
+      box-shadow:
+        0 0 0 2px #3a3b40,
+        0 0 0 4px #18191c,
+        0 36px 80px rgba(0, 0, 0, 0.55),
+        0 6px 18px rgba(0, 0, 0, 0.35),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    /* Hardware side-button hints, purely cosmetic */
+    .device::before,
+    .device::after {
+      content: '';
+      position: absolute;
+      left: -3px;
+      width: 3px;
+      background: #1d1e22;
+      border-radius: 2px 0 0 2px;
+    }
+    .device::before { top: 110px; height: 32px; }
+    .device::after { top: 170px; height: 58px; }
+
+    .volume-buttons {
+      position: absolute;
+      right: -3px;
+      top: 180px;
+      width: 3px;
+      height: 92px;
+      background: #1d1e22;
+      border-radius: 0 2px 2px 0;
+    }
+
+    .screen {
+      position: relative;
+      width: var(--screen-width);
+      height: var(--screen-height);
+      border-radius: var(--screen-radius);
+      overflow: hidden;
+      background: #fff;
+    }
+
+    /* Dynamic Island — iPhone 16 Pro size */
+    .island {
+      position: absolute;
+      top: 13px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 126px;
+      height: 37px;
+      background: #000;
+      border-radius: 19px;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    /* Status bar — sits ABOVE the Flutter host (z-index 20), Flutter
+       content (AppBar etc.) starts below it via host top offset. */
+    .status-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--status-bar-height);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 0 28px 9px;
+      font-size: 17px;
+      font-weight: 600;
+      color: #000;
+      z-index: 20;
+      pointer-events: none;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-bar .time { letter-spacing: -0.2px; }
+    .status-bar .icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-bar svg { display: block; }
+
+    /* Flutter mounts here — pushed down so iOS-style status bar
+       shows above the app's content. */
+    #flutter-host {
+      position: absolute;
+      top: var(--status-bar-height);
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 10;
+    }
+
+    .home-indicator {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 134px;
+      height: 5px;
+      background: #000;
+      border-radius: 3px;
+      z-index: 30;
+      opacity: 0.85;
+    }
+
+    /* Scale down on shorter viewports so the whole device stays
+       visible without scrolling. */
+    @media (max-height: 940px) {
+      .device { transform: scale(0.88); transform-origin: top center; }
+    }
+    @media (max-height: 820px) {
+      .device { transform: scale(0.76); transform-origin: top center; }
+    }
+    @media (max-height: 720px) {
+      .device { transform: scale(0.66); transform-origin: top center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage-label">
+    <strong>Crew Link</strong> · iOS Web-Preview (393 × 852, iPhone&nbsp;16&nbsp;Pro)
+  </div>
+
+  <div class="device">
+    <span class="volume-buttons"></span>
+
+    <div class="screen">
+      <div class="island"></div>
+
+      <div class="status-bar">
+        <span class="time" id="status-time">9:41</span>
+        <span class="icons" aria-hidden="true">
+          <!-- Cellular signal -->
+          <svg width="18" height="11" viewBox="0 0 18 11" fill="currentColor">
+            <rect x="0" y="7" width="3" height="4" rx="0.5"/>
+            <rect x="5" y="5" width="3" height="6" rx="0.5"/>
+            <rect x="10" y="3" width="3" height="8" rx="0.5"/>
+            <rect x="15" y="0" width="3" height="11" rx="0.5"/>
+          </svg>
+          <!-- Wifi -->
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor">
+            <path d="M8 11a1.3 1.3 0 1 0 0-2.6A1.3 1.3 0 0 0 8 11Z"/>
+            <path d="M8 7.6c1.3 0 2.5.5 3.4 1.3l1.5-1.5C11.6 6.1 9.8 5.4 8 5.4S4.4 6.1 3.1 7.4l1.5 1.5A4.8 4.8 0 0 1 8 7.6Z"/>
+            <path d="M8 4c2 0 3.9.8 5.3 2.1L14.8 4.7A9.2 9.2 0 0 0 8 2 9.2 9.2 0 0 0 1.2 4.7l1.5 1.4A7.5 7.5 0 0 1 8 4Z"/>
+          </svg>
+          <!-- Battery -->
+          <svg width="28" height="12" viewBox="0 0 28 12" fill="none">
+            <rect x="0.5" y="0.5" width="23" height="11" rx="2.5"
+                  stroke="currentColor" stroke-opacity="0.4"/>
+            <rect x="2" y="2" width="20" height="8" rx="1.5"
+                  fill="currentColor"/>
+            <rect x="24" y="4" width="2" height="4" rx="0.5"
+                  fill="currentColor" fill-opacity="0.4"/>
+          </svg>
+        </span>
+      </div>
+
+      <div id="flutter-host"></div>
+    </div>
+
+    <div class="home-indicator"></div>
+  </div>
+
+  <script>
+    function tickClock() {
+      const el = document.getElementById('status-time');
+      if (!el) return;
+      const d = new Date();
+      const h = d.getHours();
+      const m = String(d.getMinutes()).padStart(2, '0');
+      el.textContent = h + ':' + m;
+    }
+    tickClock();
+    setInterval(tickClock, 15000);
+  </script>
+
+  <!--
+    Custom Flutter loader: mounts the engine into #flutter-host so the
+    surrounding iPhone bezel can frame the canvas. The {{flutter_js}}
+    and {{flutter_build_config}} placeholders are substituted by the
+    Flutter build at compile time — keep them intact.
+  -->
+  <script>
+    {{flutter_js}}
+    {{flutter_build_config}}
+
+    _flutter.loader.load({
+      onEntrypointLoaded: async function(engineInitializer) {
+        const appRunner = await engineInitializer.initializeEngine({
+          hostElement: document.querySelector('#flutter-host'),
+        });
+        await appRunner.runApp();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+Erste Veröffentlichung von Crew Link.
+
+• Echtzeit-GPS-Karte für bis zu 20 Konvoi-Mitglieder
+• Automatische Abstandswarnung ab 500 m
+• Push-to-Talk Walkie-Talkie mit unter 300 ms Latenz
+• CarPlay-Integration mit PTT-Taste
+• Fahrzeugprofile mit Specs und Mods
+• Konvoi erstellen/beitreten/verlassen in maximal 3 Taps

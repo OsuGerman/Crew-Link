@@ -1,0 +1,21 @@
+Crew Link hält deinen Konvoi zusammen – in Echtzeit.
+
+LIVE-KARTE
+Sieh alle Konvoi-Mitglieder auf einer gemeinsamen Karte. GPS-Positionen werden in unter 2 Sekunden aktualisiert, damit du immer weißt, wer wo fährt.
+
+ABSTANDSWARNUNG
+Verlierst du den Anschluss? Crew Link warnt automatisch alle Mitglieder, sobald der Abstand 500 m überschreitet – bevor sich der Pulk auflöst.
+
+PUSH-TO-TALK WALKIE-TALKIE
+Drücke den PTT-Knopf und sprich direkt mit deiner Gruppe. Opus-Codec über WebRTC hält die Latenz unter 300 ms – egal wie schlecht die Verbindung ist.
+
+CARPLAY-INTEGRATION
+Volle Crew-Link-Kontrolle auf dem Carplay-Bildschirm: Konvoi-Status und PTT-Taste, ohne das Handy anfassen zu müssen.
+
+FAHRZEUGPROFILE
+Trage dein Motorrad mit Modell, Baujahr und Mods ein. Jeder im Konvoi sieht, was du fährst.
+
+KONVOI IN 3 TAPS
+Konvoi erstellen, Einladungslink teilen, fertig. Beitreten geht genauso schnell.
+
+Datenschutz: Standortdaten werden ausschließlich für die Live-Koordination innerhalb aktiver Konvois verwendet und nicht dauerhaft gespeichert oder an Dritte weitergegeben.

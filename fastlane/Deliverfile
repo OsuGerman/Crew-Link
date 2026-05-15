@@ -1,0 +1,46 @@
+# fastlane deliver config for Crew Link
+app_identifier "de.crewlink.app"
+username "adrian.mirwaldt21@gmail.com"
+
+# Metadata
+metadata_path "./fastlane/metadata"
+# Submission options
+# Set to true only after all checklist items in store/carplay_review_notes.md are checked:
+# - CarPlay entitlement approved, Provisioning Profile updated, Screenshots uploaded
+submit_for_review false
+automatic_release false
+force true
+
+# App Review Information
+app_review_information(
+  first_name: "Adrian",
+  last_name: "Mirwaldt",
+  phone_number: ENV.fetch("REVIEW_PHONE"),
+  email_address: "adrian.mirwaldt21@gmail.com",
+  demo_user: "",
+  demo_password: "",
+  notes: "CarPlay entitlement (com.apple.developer.carplay-maps) must be approved via https://developer.apple.com/contact/carplay/ before submission. The app uses CPTemplateApplicationScene with CPMapTemplate. See store/carplay_review_notes.md in the repository for full review guidance."
+)
+
+# Categories
+primary_category "NAVIGATION"
+secondary_category "SOCIAL_NETWORKING"
+
+# Age rating
+content_rating({
+  "CARTOON_FANTASY_VIOLENCE" => 0,
+  "REALISTIC_VIOLENCE" => 0,
+  "PROFANITY_CRUDE_HUMOR" => 0,
+  "MATURE_SUGGESTIVE" => 0,
+  "HORROR" => 0,
+  "MEDICAL_TREATMENT_INFO" => 0,
+  "ALCOHOL_TOBACCO_DRUGS" => 0,
+  "GAMBLING" => 0,
+  "SEXUAL_CONTENT_NUDITY" => 0,
+  "GRAPHIC_SEXUAL_CONTENT" => 0,
+  "UNRESTRICTED_WEB_ACCESS" => 0,
+  "GAMBLING_CONTESTS" => 0
+})
+
+# Screenshot devices (iPhone 6.9", 6.5", 5.5" + iPad Pro required)
+screenshots_path "./fastlane/screenshots"

@@ -1,0 +1,21 @@
+Crew Link keeps your convoy together – in real time.
+
+LIVE MAP
+See all convoy members on a shared map. GPS positions update in under 2 seconds so you always know who is where.
+
+DISTANCE WARNING
+Falling behind? Crew Link automatically alerts all members the moment the gap exceeds 500 m – before the group splits up.
+
+PUSH-TO-TALK WALKIE-TALKIE
+Hold the PTT button and talk to your group instantly. Opus codec over WebRTC keeps latency under 300 ms regardless of connection quality.
+
+CARPLAY INTEGRATION
+Full Crew Link control on the CarPlay screen: convoy status and PTT button, no need to touch your phone while riding.
+
+VEHICLE PROFILES
+Enter your motorcycle's make, model, year, and modifications. Everyone in the convoy sees what you ride.
+
+CONVOY IN 3 TAPS
+Create a convoy, share the invite link, done. Joining is just as fast.
+
+Privacy: Location data is used exclusively for live coordination within active convoys. It is never stored permanently or shared with third parties.

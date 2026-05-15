@@ -1,0 +1,8 @@
+workspace "app/ios/Runner.xcworkspace"
+scheme "Runner"
+output_directory "./build/ios"
+output_name "CrewLink.ipa"
+export_method "app-store"
+clean true
+include_symbols true
+include_bitcode false

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter test *)",
+      "PowerShell(Get-Command flutter -ErrorAction SilentlyContinue)",
+      "PowerShell(if \\(-not $?\\) { \"flutter not on PATH\" })",
+      "PowerShell($env:PATH = \"C:\\\\Users\\\\Circleguard\\\\Desktop\\\\Crew Link\\\\flutter\\\\bin;$env:PATH\"; flutter analyze 2>&1 | Select-Object -Last 80)",
+      "Bash(npm --version)",
+      "Bash(mkdir -p app)",
+      "Bash(mv lib *)",
+      "Bash(mv test *)",
+      "Bash(mv pubspec.yaml app/)",
+      "Bash(mv pubspec.lock app/)",
+      "Bash(npm audit *)"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+Initial release of Crew Link.
+
+• Live map with real-time GPS positions of all convoy members
+• Automatic distance warning at 500 m gap
+• Push-to-talk walkie-talkie with under 300 ms latency
+• CarPlay integration with convoy status and PTT button
+• Vehicle profiles with specs and modifications
+• Create or join a convoy in 3 taps
