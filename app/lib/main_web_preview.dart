@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:async/async.dart' show DelegatingStreamSink;
 import 'package:firebase_auth/firebase_auth.dart' show UserCredential;
 import 'package:firebase_database/firebase_database.dart' show FirebaseDatabase;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -448,7 +449,10 @@ Future<void> main() async {
         authTokenProvider.overrideWithValue('dev-token'),
         selfMemberIdProvider.overrideWithValue(_selfMemberId),
         httpClientProvider.overrideWithValue(mockHttp),
-        pttChannelProvider.overrideWithValue(_NoopPttChannel()),
+        // Native-iOS-Builds (AltStore-Sideload, Dev-Tests) sollen den ECHTEN
+        // PttChannel benutzen — die Methods-Channels zu PttAudioChannel.swift
+        // sind nur dort registriert. Auf Web kein nativer Handler, also Stub.
+        if (kIsWeb) pttChannelProvider.overrideWithValue(_NoopPttChannel()),
         convoySocketFactoryProvider.overrideWith((ref) {
           return ({required convoyId, required authToken}) =>
               ConvoySocketClient(

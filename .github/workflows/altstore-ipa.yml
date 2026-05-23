@@ -1,0 +1,110 @@
+name: AltStore IPA
+
+# Baut eine unsignierte IPA mit dem Demo-Entry (`main_web_preview.dart`),
+# die per AltStore mit dem persönlichen Free-Apple-ID-Team auf das
+# eigene iPhone gesideloaded werden kann.
+#
+# - Kein bezahltes Apple-Developer-Program nötig.
+# - Free-Tier-inkompatible Entitlements (Apple-Sign-In, Push, CarPlay,
+#   App-Groups) werden raus-gestrippt damit AltStore re-signen kann.
+# - Bundle-ID wird auf `de.crewlink.app.altstore` umgeschrieben damit
+#   die spätere bezahlte TestFlight-Build nicht kollidiert.
+# - Nur via `Actions → Run workflow` manuell triggerbar.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Dart entry file (mocked auth/firebase, in-memory backend)'
+        required: false
+        default: 'lib/main_web_preview.dart'
+      bundle_suffix:
+        description: 'Bundle-ID-Suffix (eindeutig je sideloaded Variante)'
+        required: false
+        default: 'altstore'
+
+jobs:
+  build:
+    name: Build unsigned IPA on macOS runner
+    runs-on: macos-latest
+    env:
+      FLUTTER_VERSION: '3.22.0'
+      BUNDLE_ID_NEW: 'de.crewlink.app.${{ github.event.inputs.bundle_suffix || ''altstore'' }}'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Strip Free-Tier-incompatible entitlements
+        run: |
+          # Free Apple-Developer-Team kann KEINE der folgenden Caps:
+          #   com.apple.developer.applesignin, aps-environment,
+          #   com.apple.developer.carplay-*, com.apple.security.application-groups
+          # → Entitlements-File auf das absolut Minimale reduzieren.
+          # AltStore packt beim Re-Signen sowieso eigene Entitlements drauf.
+          cat > app/ios/Runner/Runner.entitlements <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict></dict>
+          </plist>
+          EOF
+          echo '✓ Runner.entitlements minimized for AltStore re-signing'
+
+      - name: Remove CarPlay scene from Info.plist
+        run: |
+          # Ohne CarPlay-Entitlement scheitert iOS beim Setup der
+          # CPTemplateApplicationScene. Daher die Scene-Konfiguration für
+          # AltStore-Builds raus — App startet weiterhin normal.
+          /usr/libexec/PlistBuddy -c \
+            "Delete :UIApplicationSceneManifest:UISceneConfigurations:CPTemplateApplicationSceneSessionRoleApplication" \
+            app/ios/Runner/Info.plist || echo '(CarPlay scene already absent)'
+          echo '✓ CarPlay scene removed from Info.plist'
+
+      - name: Patch Bundle-Identifier
+        run: |
+          # Eindeutiger Bundle-ID-Suffix damit AltStore-Build und ggf.
+          # späterer Paid-TestFlight-Build koexistieren auf demselben Gerät.
+          sed -i '' \
+            "s/PRODUCT_BUNDLE_IDENTIFIER = de.crewlink.app;/PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID_NEW};/g" \
+            app/ios/Runner.xcodeproj/project.pbxproj
+          echo "✓ Bundle ID → ${BUNDLE_ID_NEW}"
+
+      - name: Override Display-Name (Crew Link · DEV)
+        run: |
+          /usr/libexec/PlistBuddy -c \
+            "Set :CFBundleDisplayName 'Crew Link DEV'" \
+            app/ios/Runner/Info.plist
+          echo '✓ Display name set'
+
+      - name: Flutter pub get
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build iOS (no codesign)
+        working-directory: app
+        run: |
+          flutter build ios --release --no-codesign \
+            --target "${{ github.event.inputs.target || 'lib/main_web_preview.dart' }}"
+
+      - name: Package Runner.app into .ipa
+        working-directory: app/build/ios/iphoneos
+        run: |
+          # Standard IPA-Layout: ein "Payload"-Ordner mit dem .app drin, gezippt.
+          mkdir -p Payload
+          cp -R Runner.app Payload/
+          zip -qr CrewLink-altstore.ipa Payload/
+          ls -lh CrewLink-altstore.ipa
+          echo '✓ IPA packaged'
+
+      - name: Upload IPA as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrewLink-AltStore-${{ github.run_number }}
+          path: app/build/ios/iphoneos/CrewLink-altstore.ipa
+          retention-days: 30
+          if-no-files-found: error
