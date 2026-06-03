@@ -40,7 +40,9 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          # An die vendored SDK im Repo angeglichen; aelter (3.22) scheitert
+          # an maplibre_gl 0.26.1, das Dart >=3.7.0 verlangt.
+          flutter-version: '3.41.9'
           channel: stable
 
       - name: Flutter pub get

@@ -28,7 +28,9 @@ jobs:
     name: Build unsigned IPA on macOS runner
     runs-on: macos-latest
     env:
-      FLUTTER_VERSION: '3.22.0'
+      # An die vendored SDK im Repo angeglichen; aelter (3.22) scheitert
+      # an maplibre_gl 0.26.1, das Dart >=3.7.0 verlangt.
+      FLUTTER_VERSION: '3.41.9'
       BUNDLE_ID_NEW: 'de.crewlink.app.${{ github.event.inputs.bundle_suffix || ''altstore'' }}'
 
     steps:
