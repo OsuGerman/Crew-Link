@@ -1,3 +1,5 @@
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -39,6 +41,12 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // Crashlytics-Mapping-Upload deaktivieren: scheitert mit den
+            // Platzhalter-google-services.json-Credentials (HTTP 400). Fuer
+            // dev/debug-signierte APKs nicht benoetigt.
+            configure<CrashlyticsExtension> {
+                mappingFileUploadEnabled = false
+            }
         }
     }
 }
