@@ -28,8 +28,12 @@ subprojects {
 // "Language version 1.6 is no longer supported" ab. Wir heben daher fuer alle
 // Subprojekte auf 1.8 an — quellkompatibel und erspart Major-Bumps jedes
 // einzelnen Plugins (mit potenziellen Dart-API-Breaks).
-subprojects {
-    afterEvaluate {
+// projectsEvaluated statt subprojects{afterEvaluate{}}: laeuft nach der
+// Evaluation aller Projekte (die evaluationDependsOn-Zeile oben evaluiert
+// Subprojekte bereits, ein spaeteres afterEvaluate wuerde dann werfen) und
+// ueberschreibt damit zuverlaessig die plugin-eigene 1.6-Einstellung.
+gradle.projectsEvaluated {
+    subprojects {
         tasks.withType<KotlinCompile>().configureEach {
             compilerOptions {
                 languageVersion.set(KotlinVersion.KOTLIN_1_8)
