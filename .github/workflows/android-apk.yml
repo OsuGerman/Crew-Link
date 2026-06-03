@@ -1,0 +1,61 @@
+name: Android APK
+
+# Baut eine installierbare APK der echten App (`lib/main.dart`) und legt
+# sie als herunterladbares Artifact ab.
+#
+# - Release wird mit den Debug-Keys signiert (siehe
+#   android/app/build.gradle.kts) → laeuft auf jedem Geraet, ist aber
+#   NICHT Play-Store-tauglich.
+# - firebase_options.dart + google-services.json sind aktuell Platzhalter:
+#   die App baut, aber Firebase-/Sentry-Features greifen erst mit echten
+#   Credentials (`flutterfire configure --project=crew-link`).
+# - Nur via `Actions → Run workflow` manuell triggerbar.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Dart entry file'
+        required: false
+        default: 'lib/main.dart'
+      build_mode:
+        description: 'release | debug'
+        required: false
+        default: 'release'
+
+jobs:
+  build:
+    name: Build APK on Ubuntu
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: stable
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build APK
+        run: |
+          flutter build apk --${{ github.event.inputs.build_mode || 'release' }} \
+            --target "${{ github.event.inputs.target || 'lib/main.dart' }}"
+          ls -lh build/app/outputs/flutter-apk/
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrewLink-APK-${{ github.run_number }}
+          path: app/build/app/outputs/flutter-apk/app-*.apk
+          retention-days: 30
+          if-no-files-found: error
