@@ -38,7 +38,7 @@ dependencies:
   flutter_webrtc: ^0.12.12+hotfix.1
   sentry_flutter: ^8.10.0
   sign_in_with_apple: ^6.1.2
-  posthog_flutter: ^4.5.0
+  posthog_flutter: ^5.25.2
   crypto: ^3.0.5
   battery_plus: ^6.0.3
 
