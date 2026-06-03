@@ -87,6 +87,11 @@ jobs:
         working-directory: app
         run: flutter pub get
 
+      - name: Generate code (freezed / json_serializable / riverpod)
+        # .g.dart/.freezed.dart sind gitignored → muessen im CI erzeugt werden.
+        working-directory: app
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Build iOS (no codesign)
         working-directory: app
         run: |

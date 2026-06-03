@@ -48,6 +48,10 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Generate code (freezed / json_serializable / riverpod)
+        # .g.dart/.freezed.dart sind gitignored → muessen im CI erzeugt werden.
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Build APK
         run: |
           flutter build apk --${{ github.event.inputs.build_mode || 'release' }} \
