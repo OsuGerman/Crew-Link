@@ -7,7 +7,7 @@
 Live-GPS-Karte · Automatische Abstandswarnung · Push-to-Talk · CarPlay-Integration
 
 [![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20CarPlay-1a1a1a?style=flat-square)](#-plattformen)
-[![Flutter](https://img.shields.io/badge/Flutter-3.22-02569B?style=flat-square&logo=flutter)](https://flutter.dev)
+[![Flutter](https://img.shields.io/badge/Flutter-3.41-02569B?style=flat-square&logo=flutter)](https://flutter.dev)
 [![Backend](https://img.shields.io/badge/Backend-Fastify%20%2B%20PostGIS-009688?style=flat-square&logo=node.js)](backend/)
 [![License](https://img.shields.io/badge/license-proprietary-ff6b35?style=flat-square)](#-lizenz)
 
@@ -159,6 +159,8 @@ Was der Workflow automatisch strippt, damit AltStore re-signen kann:
 - CarPlay-Scene aus der `Info.plist`
 - Bundle-ID auf `de.crewlink.app.altstore` umgeschrieben → koexistiert mit späterem TestFlight-Build
 
+> ⚠️ **Free-Apple-ID-Limit:** Crew Link bettet viele native Frameworks ein (Firebase, WebRTC/LiveKit, MapLibre …). Auf manchen Geräten beendet iOS (AMFI) eine mit **kostenloser** Apple-ID signierte App direkt beim Start — *ohne* Crash-Log. Zuverlässig läuft iOS erst mit einem **bezahlten Apple-Developer-Account** (TestFlight oder Ad-Hoc mit registrierter Geräte-UDID). Zum reinen Durchklicken der UI ohne Backend eignet sich der Demo-Build (`lib/main_web_preview.dart`, gemockt) — auch als Android-APK.
+
 ---
 
 ## 🚢 Release-Pipeline
@@ -175,7 +177,7 @@ Komplette TestFlight-Beta-Anleitung inkl. Fastlane-Setup, Match-Repo und CarPlay
 
 ## 🛠️ Tech-Stack
 
-**Mobile:** Flutter 3.22 · Dart 3.4 · Riverpod · Freezed · go_router · MapLibre · Firebase (Auth, Crashlytics, FCM) · LiveKit · WebRTC · Sentry
+**Mobile:** Flutter 3.41 · Dart 3.11 · Riverpod · Freezed · go_router · MapLibre · Firebase (Auth, Crashlytics, FCM) · LiveKit · WebRTC · Sentry
 
 **Native:** Swift (CarPlay-Bridge) · Kotlin
 
@@ -184,6 +186,21 @@ Komplette TestFlight-Beta-Anleitung inkl. Fastlane-Setup, Match-Repo und CarPlay
 **Persistenz & Infra:** PostgreSQL + PostGIS · Redis (Fanout) · Docker Compose
 
 **Release:** Fastlane · GitHub Actions · AltStore (Dev-Sideload)
+
+---
+
+## ⚙️ Setup & bekannte Einschränkungen
+
+Vor dem ersten echten Geräte-Betrieb müssen ein paar Credentials/Configs gesetzt werden — der Code ist so verdrahtet, dass er **mit** den Werten sofort greift und ohne sie sauber degradiert (kein Start-Crash):
+
+| Was | Wie | Status ohne Setup |
+|---|---|---|
+| **Firebase** (Auth, FCM, Crashlytics, Analytics) | `flutterfire configure --project=crew-link` → echte `firebase_options.dart` / `google-services.json` / `GoogleService-Info.plist` | Platzhalter; `Firebase.initializeApp` ist in `try/catch` gekapselt → App startet, Firebase-Features aus |
+| **Android-Release-Signing** | Env-Vars `RELEASE_KEYSTORE_FILE` / `RELEASE_STORE_PASSWORD` / `RELEASE_KEY_ALIAS` / `RELEASE_KEY_PASSWORD` | Fallback auf Debug-Key (nicht Play-uploadfähig) |
+| **iOS-Signing** | `DEVELOPMENT_TEAM` in der Xcode-Config + Apple-Secrets für TestFlight (siehe [TESTFLIGHT.md](TESTFLIGHT.md)) | Archive/Upload erfordert manuelle Team-Auswahl |
+| **CarPlay** | Apple-Approval für `carplay-communication` | Bridge implementiert, Review offen |
+
+**Hintergrund-Tracking:** Die App stuft die Standort-Berechtigung beim Konvoi-Beitritt auf *Always* hoch und nutzt einen Android-Foreground-Service, damit das Live-Tracking auch im Hintergrund/gesperrt weiterläuft.
 
 ---
 
