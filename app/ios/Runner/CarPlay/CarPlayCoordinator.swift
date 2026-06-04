@@ -9,6 +9,11 @@ final class CarPlayCoordinator {
   private let interfaceController: CPInterfaceController
   private weak var bridge: CarPlayBridge?
   private var mapTemplate: CPMapTemplate?
+  private var pttMapButton: CPMapButton?
+  // PTT is modelled as a toggle: CPMapButton exposes no press-down/press-up,
+  // so the old fixed 0.4 s window capped speech at ~0.4 s. Tap once to open
+  // the mic, tap again to close it.
+  private var pttActive = false
 
   init(
     interfaceController: CPInterfaceController, bridge: CarPlayBridge?
@@ -23,11 +28,23 @@ final class CarPlayCoordinator {
     map.mapButtons = [pttButton()]
     map.trailingNavigationBarButtons = [exitButton()]
     setStatus(memberCount: 0, proximityActive: false, on: map)
-    interfaceController.setRootTemplate(map, animated: false) { _, _ in }
+    interfaceController.setRootTemplate(map, animated: false) { success, error in
+      if let error = error {
+        NSLog("[CarPlay] setRootTemplate failed: %@", error.localizedDescription)
+      } else if !success {
+        NSLog("[CarPlay] setRootTemplate returned success=false")
+      }
+    }
     mapTemplate = map
   }
 
   func detach() {
+    // Avoid a stuck-open mic if CarPlay disconnects mid-transmission.
+    if pttActive {
+      pttActive = false
+      bridge?.pttReleased()
+    }
+    pttMapButton = nil
     mapTemplate = nil
   }
 
@@ -53,22 +70,28 @@ final class CarPlayCoordinator {
 
   private func pttButton() -> CPMapButton {
     let button = CPMapButton { [weak self] _ in
-      // CarPlay map buttons don't expose press-down/press-up natively.
-      // We dispatch a brief "pressed" followed by a "released" event so
-      // the Flutter side can drive a fixed-duration speech window. A
-      // future iteration can switch to a custom UIScene gesture, but
-      // for the initial CarPlay-Review the simple action keeps the
-      // entitlement review simple.
-      guard let bridge = self?.bridge else { return }
-      bridge.pttPressed()
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+      // CPMapButton has no press-down/press-up, so PTT is a toggle: first tap
+      // opens the mic, second tap closes it. The Dart side maps pttPressed →
+      // startTransmitting and pttReleased → stopTransmitting unchanged.
+      guard let self, let bridge = self.bridge else { return }
+      self.pttActive.toggle()
+      if self.pttActive {
+        bridge.pttPressed()
+      } else {
         bridge.pttReleased()
       }
+      self.updatePttButtonImage()
     }
-    button.image = UIImage(systemName: "mic.fill")?
-      .withRenderingMode(.alwaysTemplate)
+    pttMapButton = button
+    updatePttButtonImage()
     button.isEnabled = true
     return button
+  }
+
+  private func updatePttButtonImage() {
+    let symbol = pttActive ? "mic.circle.fill" : "mic.fill"
+    pttMapButton?.image = UIImage(systemName: symbol)?
+      .withRenderingMode(.alwaysTemplate)
   }
 
   private func exitButton() -> CPBarButton {

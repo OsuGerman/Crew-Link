@@ -33,7 +33,23 @@ final class PttAudioChannel: NSObject {
   static let sessionChannelName = "crewlink/ptt/session"
 
   private let engine       = AVAudioEngine()
-  private var eventSink:    FlutterEventSink?
+
+  /// 1-byte codec tag prepended to every frame so the receiver knows how to
+  /// decode it (Opus vs raw int16 PCM). iOS and Android MUST agree on these.
+  private enum Codec {
+    static let opus: UInt8 = 0x01
+    static let pcm:  UInt8 = 0x00
+  }
+
+  // eventSink is read from the render thread (processTap → encodeAndSend) and
+  // written on the platform thread (onListen/onCancel) → guard with a lock to
+  // avoid a torn read of the closure reference.
+  private let sinkLock = NSLock()
+  private var _eventSink: FlutterEventSink?
+  private var eventSink: FlutterEventSink? {
+    get { sinkLock.lock(); defer { sinkLock.unlock() }; return _eventSink }
+    set { sinkLock.lock(); defer { sinkLock.unlock() }; _eventSink = newValue }
+  }
 
   // MARK: Session event forwarding
   private let sessionHandler = _SessionStreamHandler()
@@ -47,6 +63,9 @@ final class PttAudioChannel: NSObject {
   private var mono48Format:  AVAudioFormat?
   private var opusEncFmt:    AVAudioFormat?
   private let opusFrameSize = 960
+  // accumulator is mutated on the render thread (processTap) and cleared on the
+  // main thread (stopRecording / interruption handler) → guard with a lock.
+  private let accumulatorLock = NSLock()
   private var accumulator:   [Float] = []
 
   // MARK: Decode (playback) state
@@ -194,6 +213,9 @@ final class PttAudioChannel: NSObject {
   // MARK: - Recording
 
   private func startRecording(result: @escaping FlutterResult) {
+    // Guard against a double start: a second tap on a running engine would
+    // leak the first tap and throw on engine.start().
+    guard !isRecording else { result(nil); return }
     do {
       try activateSession()
     } catch {
@@ -267,20 +289,29 @@ final class PttAudioChannel: NSObject {
     guard let mono = AVAudioPCMBuffer(pcmFormat: mono48,
                                        frameCapacity: outCount) else { return }
     var convertErr: NSError?
+    // The converter may pull the input block more than once per convert();
+    // hand the source buffer over exactly once, then signal no-more-data.
+    var provided = false
     conv.convert(to: mono, error: &convertErr) { _, sp in
-      sp.pointee = .haveData; return buffer
+      if provided { sp.pointee = .noDataNow; return nil }
+      provided = true
+      sp.pointee = .haveData
+      return buffer
     }
     guard convertErr == nil,
           let ptr = mono.floatChannelData?[0] else { return }
 
+    var chunks: [[Float]] = []
+    accumulatorLock.lock()
     accumulator.append(
       contentsOf: UnsafeBufferPointer(start: ptr, count: Int(mono.frameLength)))
-
     while accumulator.count >= opusFrameSize {
-      let chunk = Array(accumulator.prefix(opusFrameSize))
+      chunks.append(Array(accumulator.prefix(opusFrameSize)))
       accumulator.removeFirst(opusFrameSize)
-      encodeAndSend(samples: chunk)
     }
+    accumulatorLock.unlock()
+
+    for chunk in chunks { encodeAndSend(samples: chunk) }
   }
 
   private func encodeAndSend(samples: [Float]) {
@@ -297,21 +328,26 @@ final class PttAudioChannel: NSObject {
 
       srcBuf.frameLength = AVAudioFrameCount(opusFrameSize)
       samples.withUnsafeBufferPointer {
-        srcBuf.floatChannelData![0]
-          .initialize(from: $0.baseAddress!, count: opusFrameSize)
+        guard let base = $0.baseAddress else { return }
+        srcBuf.floatChannelData![0].initialize(from: base, count: opusFrameSize)
       }
 
       let dstBuf = AVAudioCompressedBuffer(format: opusFmt,
                                             packetCapacity: 1,
                                             maximumPacketSize: 1_275)
       var encErr: NSError?
+      var provided = false
       let status = conv.convert(to: dstBuf, error: &encErr) { _, sp in
-        sp.pointee = .haveData; return srcBuf
+        if provided { sp.pointee = .noDataNow; return nil }
+        provided = true
+        sp.pointee = .haveData
+        return srcBuf
       }
       if status != .error, encErr == nil, dstBuf.byteLength > 0 {
-        let bytes = Data(bytes: dstBuf.data, count: Int(dstBuf.byteLength))
+        var framed = Data([Codec.opus])
+        framed.append(Data(bytes: dstBuf.data, count: Int(dstBuf.byteLength)))
         DispatchQueue.main.async {
-          sink(FlutterStandardTypedData(bytes: bytes))
+          sink(FlutterStandardTypedData(bytes: framed))
         }
         return
       }
@@ -323,8 +359,9 @@ final class PttAudioChannel: NSObject {
     let int16 = samples.map {
       Int16(clamping: Int(($0 * 32_767).rounded(.toNearestOrAwayFromZero)))
     }
-    let data = int16.withUnsafeBufferPointer { Data(buffer: $0) }
-    DispatchQueue.main.async { sink(FlutterStandardTypedData(bytes: data)) }
+    var framed = Data([Codec.pcm])
+    framed.append(int16.withUnsafeBufferPointer { Data(buffer: $0) })
+    DispatchQueue.main.async { sink(FlutterStandardTypedData(bytes: framed)) }
   }
 
   // MARK: - Playback
@@ -366,63 +403,73 @@ final class PttAudioChannel: NSObject {
   }
 
   private func playFrame(_ data: Data) {
+    // First byte is the codec tag (see `Codec`); the rest is the payload.
+    // Guard against empty/short frames before any force-unwrap.
+    guard !data.isEmpty else { return }
+    let codec = data[data.startIndex]
+    let payload = Data(data.dropFirst())
+    guard !payload.isEmpty else { return }
+
     try? ensurePlaybackEngine()
     guard let node = playerNode, let outFmt = playbackFmt else { return }
 
-    var pcmBuffer: AVAudioPCMBuffer?
+    if codec == Codec.opus {
+      // Opus (iOS 16+). On ANY decode failure we drop the frame — never fall
+      // through to the PCM path, which would reinterpret Opus bytes as a loud
+      // noise burst (dangerous with Bluetooth headphones).
+      guard #available(iOS 16.0, *),
+            let conv    = opusDecoder,
+            let opusFmt = opusDecFmt,
+            payload.count <= 1_275,
+            let dstBuf  = AVAudioPCMBuffer(
+              pcmFormat: outFmt,
+              frameCapacity: AVAudioFrameCount(opusFrameSize))
+      else { return }
 
-    // Try Opus decode (iOS 16+)
-    if #available(iOS 16.0, *),
-       let conv    = opusDecoder,
-       let opusFmt = opusDecFmt,
-       let dstBuf  = AVAudioPCMBuffer(pcmFormat: outFmt,
-                                       frameCapacity: AVAudioFrameCount(opusFrameSize)) {
-      let srcBuf = AVAudioCompressedBuffer(
-        format: opusFmt,
-        packetCapacity: 1,
-        maximumPacketSize: data.count
-      )
-      data.withUnsafeBytes { raw in
-        srcBuf.data.copyMemory(from: raw.baseAddress!, byteCount: data.count)
+      let srcBuf = AVAudioCompressedBuffer(format: opusFmt,
+                                            packetCapacity: 1,
+                                            maximumPacketSize: 1_275)
+      payload.withUnsafeBytes { raw in
+        guard let base = raw.baseAddress else { return }
+        srcBuf.data.copyMemory(from: base, byteCount: payload.count)
       }
-      srcBuf.byteLength = UInt32(data.count)
-      srcBuf.packetDescriptions![0] = AudioStreamPacketDescription(
+      srcBuf.byteLength = UInt32(payload.count)
+      guard let descs = srcBuf.packetDescriptions else { return }
+      descs[0] = AudioStreamPacketDescription(
         mStartOffset: 0,
         mVariableFramesInPacket: 0,
-        mDataByteSize: UInt32(data.count)
+        mDataByteSize: UInt32(payload.count)
       )
       srcBuf.packetCount = 1
 
       var decErr: NSError?
+      var provided = false
       conv.convert(to: dstBuf, error: &decErr) { _, sp in
-        sp.pointee = .haveData; return srcBuf
+        if provided { sp.pointee = .noDataNow; return nil }
+        provided = true
+        sp.pointee = .haveData
+        return srcBuf
       }
-      if decErr == nil, dstBuf.frameLength > 0 {
-        pcmBuffer = dstBuf
-      }
+      guard decErr == nil, dstBuf.frameLength > 0 else { return }
+      node.scheduleBuffer(dstBuf)
+      return
     }
 
-    // Fallback: int16 PCM (960 samples = 1 920 bytes)
-    if pcmBuffer == nil {
-      let sampleCount = data.count / 2
-      guard sampleCount > 0,
-            let buf = AVAudioPCMBuffer(pcmFormat: outFmt,
-                                       frameCapacity: AVAudioFrameCount(sampleCount))
-      else { return }
-      buf.frameLength = AVAudioFrameCount(sampleCount)
-      data.withUnsafeBytes { raw in
-        let src = raw.bindMemory(to: Int16.self)
-        let dst = buf.floatChannelData![0]
-        for i in 0..<sampleCount {
-          dst[i] = Float(src[i]) / 32_767.0
-        }
+    // PCM: int16 little-endian, 2 bytes per sample.
+    let sampleCount = payload.count / 2
+    guard sampleCount > 0,
+          let buf = AVAudioPCMBuffer(pcmFormat: outFmt,
+                                     frameCapacity: AVAudioFrameCount(sampleCount))
+    else { return }
+    buf.frameLength = AVAudioFrameCount(sampleCount)
+    payload.withUnsafeBytes { raw in
+      let src = raw.bindMemory(to: Int16.self)
+      let dst = buf.floatChannelData![0]
+      for i in 0..<sampleCount {
+        dst[i] = Float(src[i]) / 32_767.0
       }
-      pcmBuffer = buf
     }
-
-    if let buf = pcmBuffer {
-      node.scheduleBuffer(buf)
-    }
+    node.scheduleBuffer(buf)
   }
 
   private func stopPlayback() {
