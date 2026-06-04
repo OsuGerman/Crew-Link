@@ -61,12 +61,12 @@ class DefaultFirebaseOptions {
     iosBundleId: 'de.crewlink.app',
   );
 
-  // macOS is not a build target; reuse the iOS app values so this never throws
-  // if run on desktop. Register a macOS app + re-run flutterfire configure for
-  // a proper macOS config.
+  // macOS is not a build target and not registered in Firebase — the appId is
+  // a placeholder (macOS is never built, so this is never read). Register a
+  // macOS app + re-run flutterfire configure for a real config.
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyAyjVQ6vOzHCpX6qkyr5G6SzBYc1PLIClA',
-    appId: '1:44150442783:ios:cc1874503c95ffe7b67e2a',
+    appId: '1:44150442783:macos:REPLACE',
     messagingSenderId: '44150442783',
     projectId: 'crew-link-3c852',
     databaseURL: 'https://crew-link-3c852-default-rtdb.firebaseio.com',
