@@ -319,7 +319,7 @@ final class PttAudioChannel: NSObject {
     sendPcm(samples: samples, sink: sink)
   }
 
-  private func sendPcm(samples: [Float], sink: FlutterEventSink) {
+  private func sendPcm(samples: [Float], sink: @escaping FlutterEventSink) {
     let int16 = samples.map {
       Int16(clamping: Int(($0 * 32_767).rounded(.toNearestOrAwayFromZero)))
     }
