@@ -4,8 +4,11 @@ publish_to: none
 version: 0.1.0+1
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
-  flutter: ">=3.22.0"
+  # An die tatsaechliche Lockfile-Floor angeglichen (vendored SDK 3.41.9);
+  # die alten Werte (Dart 3.4 / Flutter 3.22) konnten den Dependency-Graph
+  # nicht aufloesen (maplibre_gl, synchronized, path_provider_foundation …).
+  sdk: ">=3.11.0 <4.0.0"
+  flutter: ">=3.38.4"
 
 dependencies:
   cloud_firestore: ^5.4.4
