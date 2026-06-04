@@ -292,12 +292,11 @@ class PttAudioChannel(messenger: BinaryMessenger, private val context: Context) 
 
     private fun ensurePlaybackExecutor(): ExecutorService {
         synchronized(playbackLock) {
-            var exec = playbackExecutor
-            if (exec == null || exec.isShutdown) {
-                exec = Executors.newSingleThreadExecutor()
-                playbackExecutor = exec
-            }
-            return exec
+            val existing = playbackExecutor
+            if (existing != null && !existing.isShutdown) return existing
+            val created = Executors.newSingleThreadExecutor()
+            playbackExecutor = created
+            return created
         }
     }
 
@@ -368,12 +367,12 @@ class PttAudioChannel(messenger: BinaryMessenger, private val context: Context) 
     private fun opusIdHeader(): ByteArray {
         val b = ByteBuffer.allocate(19).order(ByteOrder.LITTLE_ENDIAN)
         b.put("OpusHead".toByteArray(Charsets.US_ASCII)) // 8 bytes magic
-        b.put(1)                  // version
-        b.put(1)                  // channel count (mono)
-        b.putShort(0)             // pre-skip
-        b.putInt(SAMPLE_RATE)     // input sample rate
-        b.putShort(0)             // output gain
-        b.put(0)                  // channel mapping family
+        b.put(1.toByte())              // version
+        b.put(1.toByte())              // channel count (mono)
+        b.putShort(0.toShort())        // pre-skip
+        b.putInt(SAMPLE_RATE)          // input sample rate
+        b.putShort(0.toShort())        // output gain
+        b.put(0.toByte())              // channel mapping family
         return b.array()
     }
 
