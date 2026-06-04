@@ -106,6 +106,15 @@ Widget _app(
 }
 
 /// Navigates the full 3-step ConvoyCreateSheet and submits.
+// ActiveConvoyView runs a continuous radar-sweep animation, so pumpAndSettle
+// never completes once the active view is shown. Pump a bounded amount
+// instead (enough for sheet/page transitions + the in-memory API + setState).
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 5; i++) {
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+}
+
 Future<void> _doCreate(WidgetTester tester, {String name = 'Trip'}) async {
   await tester.tap(find.text('Neuen Konvoi starten'));
   await tester.pumpAndSettle();
@@ -162,11 +171,11 @@ void main() {
 
       await tester.pumpWidget(_app(client));
       await tester.tap(find.text('Konvoi beitreten'));
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       await tester.enterText(find.byType(TextField), 'XYZ789');
       await tester.tap(find.text('Beitreten'));
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       expect(captured!.url.path, '/convoys/join');
       final body = jsonDecode(captured!.body) as Map<String, Object?>;
@@ -180,10 +189,10 @@ void main() {
       final client = _client((req) => http.Response('boom', 500));
       await tester.pumpWidget(_app(client));
       await tester.tap(find.text('Konvoi beitreten'));
-      await tester.pumpAndSettle();
+      await _settle(tester);
       await tester.enterText(find.byType(TextField), 'BAD');
       await tester.tap(find.text('Beitreten'));
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       expect(find.textContaining('Fehler'), findsOneWidget);
       expect(find.text('Neuen Konvoi starten'), findsOneWidget);
@@ -204,9 +213,9 @@ void main() {
 
       final leaveFinder = find.text('Konvoi verlassen');
       await tester.ensureVisible(leaveFinder);
-      await tester.pumpAndSettle();
+      await _settle(tester);
       await tester.tap(leaveFinder);
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       final deleteReq = requests.firstWhere((r) => r.method == 'DELETE');
       expect(deleteReq.url.path, '/convoys/c1/membership');
@@ -227,9 +236,9 @@ void main() {
 
       final leaveFinder = find.text('Konvoi verlassen');
       await tester.ensureVisible(leaveFinder);
-      await tester.pumpAndSettle();
+      await _settle(tester);
       await tester.tap(leaveFinder);
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       expect(find.textContaining('Fehler'), findsOneWidget);
       expect(find.text('Neuen Konvoi starten'), findsNothing);
@@ -260,7 +269,7 @@ void main() {
         speedMps: 0,
         timestamp: DateTime.utc(2026, 5, 13, 12, 0, 6),
       ));
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       expect(find.byKey(const ValueKey('member-row-self')), findsOneWidget);
       expect(find.byKey(const ValueKey('member-row-buddy')), findsOneWidget);
@@ -323,7 +332,7 @@ void main() {
         speedMps: 0,
         timestamp: DateTime.utc(2026, 5, 13, 12, 0, 1),
       ));
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       expect(find.byKey(const ValueKey('proximity-banner')), findsOneWidget);
       expect(

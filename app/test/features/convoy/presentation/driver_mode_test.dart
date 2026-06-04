@@ -92,6 +92,14 @@ Widget _app({_FakeSocket? socket}) {
   );
 }
 
+// ActiveConvoyView runs a continuous radar-sweep animation, so pumpAndSettle
+// never completes once the active view is shown. Pump a bounded amount instead.
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 5; i++) {
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+}
+
 Future<void> _enterActiveConvoy(WidgetTester tester) async {
   await tester.tap(find.text('Neuen Konvoi starten'));
   await tester.pumpAndSettle();
@@ -127,7 +135,7 @@ void main() {
       expect(find.byKey(const ValueKey('driver-leave-button')), findsNothing);
 
       await tester.tap(find.byKey(const ValueKey('toggle-driver-mode')));
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       // Driver view: simplified members summary + big leave button.
       expect(find.byKey(const ValueKey('driver-leave-button')), findsOneWidget);
@@ -143,7 +151,7 @@ void main() {
       expect(find.byKey(const ValueKey('open-vehicle-profile')), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('toggle-driver-mode')));
-      await tester.pumpAndSettle();
+      await _settle(tester);
       expect(find.byKey(const ValueKey('open-vehicle-profile')), findsNothing);
     });
 
@@ -151,10 +159,10 @@ void main() {
       await tester.pumpWidget(_app());
       await _enterActiveConvoy(tester);
       await tester.tap(find.byKey(const ValueKey('toggle-driver-mode')));
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       await tester.tap(find.byKey(const ValueKey('driver-leave-button')));
-      await tester.pumpAndSettle();
+      await _settle(tester);
       expect(find.text('Neuen Konvoi starten'), findsOneWidget);
     });
 
@@ -166,7 +174,7 @@ void main() {
 
       // Switch to driver mode FIRST so the card target exists.
       await tester.tap(find.byKey(const ValueKey('toggle-driver-mode')));
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       // Self at origin, peer 50 m to north -> within 500 m default.
       socket.publishLocation(GpsUpdate(
@@ -185,7 +193,7 @@ void main() {
         speedMps: 0,
         timestamp: DateTime.utc(2026, 5, 13, 12, 0, 1),
       ));
-      await tester.pumpAndSettle();
+      await _settle(tester);
 
       expect(find.byKey(const ValueKey('driver-proximity-card')),
           findsOneWidget);
