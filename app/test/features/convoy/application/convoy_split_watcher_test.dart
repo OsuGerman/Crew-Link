@@ -96,7 +96,7 @@ void main() {
             notificationServiceProvider.overrideWithValue(fakeNotif),
             selfMemberIdProvider.overrideWithValue('self'),
             currentConvoyProvider.overrideWith((_) => convoy),
-            clockProvider.overrideWith((_) => fakeClock),
+            clockProvider.overrideWith((_) => () => fakeClock()),
             livePositionsProvider.overrideWith(
               (_) => posCtrl.stream
                   .map((v) => v.valueOrNull ?? const {}),

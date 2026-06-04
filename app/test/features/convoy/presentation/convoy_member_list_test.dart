@@ -33,7 +33,7 @@ Widget _harness(Widget child) => MaterialApp(
 
 void main() {
   group('ConvoyMemberList', () {
-    testWidgets('renders header with member count from convoy.members',
+    testWidgets('renders MITGLIEDER header and kein GPS when no positions',
         (tester) async {
       final convoy = _convoy(members: const [
         ConvoyMember(id: 'me', displayName: 'Du', isLeader: true),
@@ -45,8 +45,28 @@ void main() {
         positions: const {},
         selfMemberId: 'me',
       )));
-      expect(find.text('3 Mitglieder im Konvoi'), findsOneWidget);
-      expect(find.text('noch keine Live-GPS-Daten'), findsOneWidget);
+      expect(find.text('MITGLIEDER'), findsOneWidget);
+      expect(find.text('kein GPS'), findsOneWidget);
+    });
+
+    testWidgets('header shows live and total counts when positions present',
+        (tester) async {
+      final convoy = _convoy(members: const [
+        ConvoyMember(id: 'me', displayName: 'Du', isLeader: true),
+        ConvoyMember(id: 'buddy', displayName: 'Buddy'),
+        ConvoyMember(id: 'lurker', displayName: 'Lurker'),
+      ]);
+      final positions = <String, GpsUpdate>{
+        'me': _u('me', 52.5200, 13.4050),
+        'buddy': _u('buddy', 52.5200, 13.4060),
+      };
+      await tester.pumpWidget(_harness(ConvoyMemberList(
+        convoy: convoy,
+        positions: positions,
+        selfMemberId: 'me',
+      )));
+      // 2 members report GPS, 3 are in the convoy roster.
+      expect(find.text('2 live · 3 total'), findsOneWidget);
     });
 
     testWidgets('shows self first, peers sorted by distance ascending',
@@ -67,13 +87,16 @@ void main() {
         selfMemberId: 'me',
       )));
 
-      final tiles = tester
-          .widgetList<ListTile>(find.byType(ListTile))
+      // Rows are Material widgets keyed 'member-row-<id>', ordered
+      // self-first then peers by ascending distance: me, near, far.
+      final rowKeys = tester
+          .widgetList<Material>(find.byType(Material))
+          .where((m) =>
+              m.key is ValueKey &&
+              (m.key! as ValueKey).value.toString().startsWith('member-row-'))
+          .map((m) => (m.key! as ValueKey).value)
           .toList();
-      // Header tile is index 0; member rows follow in order me, near, far.
-      expect((tiles[1].key as ValueKey).value, 'member-row-me');
-      expect((tiles[2].key as ValueKey).value, 'member-row-near');
-      expect((tiles[3].key as ValueKey).value, 'member-row-far');
+      expect(rowKeys, ['member-row-me', 'member-row-near', 'member-row-far']);
     });
 
     testWidgets('shows Du badge for self and Anführer for leader',
@@ -93,7 +116,7 @@ void main() {
       )));
 
       expect(find.text('Du'), findsWidgets);
-      expect(find.text('Anführer'), findsOneWidget);
+      expect(find.text('Leader'), findsOneWidget);
     });
 
     testWidgets('formats distance and speed in friendly units',
@@ -109,10 +132,11 @@ void main() {
         selfMemberId: 'me',
       )));
 
-      // ~78 m east, 10 m/s -> 36 km/h
-      expect(find.textContaining('m entfernt'), findsOneWidget);
+      // ~68 m east, 10 m/s -> 36 km/h
+      expect(find.text('68 m'), findsOneWidget);
       expect(find.textContaining('36 km/h'), findsOneWidget);
-      expect(find.textContaining('Du · hier'), findsOneWidget);
+      // Self row's distance pill reads 'Du'.
+      expect(find.text('Du'), findsOneWidget);
     });
 
     testWidgets('falls back to memberId when convoy.members has no entry',
@@ -157,7 +181,8 @@ void main() {
         positions: positions,
         selfMemberId: 'me',
       )));
-      expect(find.text('Tesla Model 3 · 2024'), findsOneWidget);
+      // Vehicle headline and speed share one subtitle Text.
+      expect(find.text('Tesla Model 3 · 2024 · 0 km/h'), findsOneWidget);
     });
   });
 }

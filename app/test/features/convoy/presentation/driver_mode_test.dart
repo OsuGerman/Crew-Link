@@ -6,6 +6,7 @@ import 'package:crew_link/core/config/api_config.dart';
 import 'package:crew_link/core/models/gps_update.dart';
 import 'package:crew_link/core/realtime/connection_status.dart';
 import 'package:crew_link/core/realtime/convoy_socket_client.dart';
+import 'package:crew_link/features/auth/application/auth_providers.dart';
 import 'package:crew_link/features/convoy/application/convoy_providers.dart';
 import 'package:crew_link/features/convoy/application/driver_mode.dart';
 import 'package:crew_link/features/onboarding/application/onboarding_state.dart';
@@ -63,6 +64,12 @@ Widget _app({_FakeSocket? socket}) {
       httpClientProvider.overrideWithValue(_alwaysOkClient()),
       authTokenProvider.overrideWithValue('test-token'),
       selfMemberIdProvider.overrideWithValue('self'),
+      // Firebase is not initialized in widget tests, so authStateProvider
+      // would error and the router would redirect to /login. Resolve auth to
+      // a null user and flip the dev-signed-in override so the router's
+      // auth gate passes and the ConvoyHomeScreen lobby renders.
+      authStateProvider.overrideWith((ref) => Stream.value(null)),
+      devSignedInOverrideProvider.overrideWith((ref) => true),
       onboardingCompletedProvider.overrideWith((ref) => true),
       // Pin the proximity-service clock so the synthetic GPS timestamps
       // in the proximity test don't trip the stale-position filter.
@@ -81,8 +88,14 @@ Widget _app({_FakeSocket? socket}) {
 Future<void> _enterActiveConvoy(WidgetTester tester) async {
   await tester.tap(find.text('Neuen Konvoi erstellen'));
   await tester.pumpAndSettle();
+  // ConvoyCreateSheet is a 3-step wizard: name -> threshold -> confirm.
   await tester.enterText(find.byType(TextField), 'Trip');
-  await tester.tap(find.text('Erstellen'));
+  await tester.pump();
+  await tester.tap(find.byKey(const ValueKey('convoy-create-step0-btn')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('convoy-create-step1-btn')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('convoy-create-step2-btn')));
   await tester.pumpAndSettle();
 }
 

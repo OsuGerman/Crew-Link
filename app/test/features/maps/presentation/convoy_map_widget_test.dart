@@ -38,19 +38,32 @@ ProviderContainer _container(List<MemberMarker> initial) => ProviderContainer(
       ],
     );
 
+// Pins are rendered by the native MapLibre platform view via GeoJSON
+// circle/symbol layers, which do not paint Flutter widgets in widget tests.
+// We therefore verify that the widget builds (fit-all FAB present) and that
+// marker data flows through memberMarkersProvider as the convoy mutates.
 void main() {
   group('ConvoyMapWidget', () {
-    testWidgets('renders self pin and peer pins for each member', (tester) async {
+    testWidgets('builds with the fit-all control and exposes self + peer markers',
+        (tester) async {
       final container = _container(
-        _makeMarkers({'self': LatLng(48.0, 11.0), 'peer': LatLng(48.1, 11.1)}, 'self'),
+        _makeMarkers(
+          {'self': const LatLng(48.0, 11.0), 'peer': const LatLng(48.1, 11.1)},
+          'self',
+        ),
       );
       addTearDown(container.dispose);
 
       await tester.pumpWidget(_wrap(container));
       await tester.pump();
 
-      expect(find.byIcon(Icons.my_location), findsOneWidget);
-      expect(find.byIcon(Icons.directions_car), findsOneWidget);
+      expect(find.byKey(const ValueKey('fit-all-fab')), findsOneWidget);
+
+      final markers = container.read(memberMarkersProvider);
+      expect(markers, hasLength(2));
+      expect(markers.where((m) => m.isSelf), hasLength(1));
+      expect(markers.firstWhere((m) => m.isSelf).memberId, 'self');
+      expect(markers.where((m) => !m.isSelf).map((m) => m.memberId), contains('peer'));
     });
 
     testWidgets('no markers when convoy has no members', (tester) async {
@@ -60,44 +73,51 @@ void main() {
       await tester.pumpWidget(_wrap(container));
       await tester.pump();
 
-      expect(find.byIcon(Icons.my_location), findsNothing);
-      expect(find.byIcon(Icons.directions_car), findsNothing);
+      expect(find.byKey(const ValueKey('fit-all-fab')), findsOneWidget);
+      expect(container.read(memberMarkersProvider), isEmpty);
     });
 
-    testWidgets('adding a member shows new pin', (tester) async {
+    testWidgets('adding a member surfaces a new marker', (tester) async {
       final container = _container(
-        _makeMarkers({'self': LatLng(48.0, 11.0)}, 'self'),
+        _makeMarkers({'self': const LatLng(48.0, 11.0)}, 'self'),
       );
       addTearDown(container.dispose);
 
       await tester.pumpWidget(_wrap(container));
       await tester.pump();
-      expect(find.byIcon(Icons.directions_car), findsNothing);
+      expect(container.read(memberMarkersProvider).where((m) => !m.isSelf), isEmpty);
 
-      container.read(_testMarkersProvider.notifier).state =
-          _makeMarkers({'self': LatLng(48.0, 11.0), 'peer': LatLng(48.2, 11.2)}, 'self');
+      container.read(_testMarkersProvider.notifier).state = _makeMarkers(
+        {'self': const LatLng(48.0, 11.0), 'peer': const LatLng(48.2, 11.2)},
+        'self',
+      );
       await tester.pump();
 
-      expect(find.byIcon(Icons.my_location), findsOneWidget);
-      expect(find.byIcon(Icons.directions_car), findsOneWidget);
+      final markers = container.read(memberMarkersProvider);
+      expect(markers, hasLength(2));
+      expect(markers.where((m) => !m.isSelf).map((m) => m.memberId), contains('peer'));
     });
 
-    testWidgets('removing a member removes pin', (tester) async {
+    testWidgets('removing a member drops its marker', (tester) async {
       final container = _container(
-        _makeMarkers({'self': LatLng(48.0, 11.0), 'peer': LatLng(48.1, 11.1)}, 'self'),
+        _makeMarkers(
+          {'self': const LatLng(48.0, 11.0), 'peer': const LatLng(48.1, 11.1)},
+          'self',
+        ),
       );
       addTearDown(container.dispose);
 
       await tester.pumpWidget(_wrap(container));
       await tester.pump();
-      expect(find.byIcon(Icons.directions_car), findsOneWidget);
+      expect(container.read(memberMarkersProvider).where((m) => !m.isSelf), hasLength(1));
 
       container.read(_testMarkersProvider.notifier).state =
-          _makeMarkers({'self': LatLng(48.0, 11.0)}, 'self');
+          _makeMarkers({'self': const LatLng(48.0, 11.0)}, 'self');
       await tester.pump();
 
-      expect(find.byIcon(Icons.directions_car), findsNothing);
-      expect(find.byIcon(Icons.my_location), findsOneWidget);
+      final markers = container.read(memberMarkersProvider);
+      expect(markers.where((m) => !m.isSelf), isEmpty);
+      expect(markers.where((m) => m.isSelf), hasLength(1));
     });
   });
 }

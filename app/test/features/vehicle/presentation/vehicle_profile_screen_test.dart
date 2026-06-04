@@ -122,6 +122,7 @@ void main() {
         }),
         200,
       );
+      await tester.ensureVisible(find.byKey(const ValueKey('vehicle-save')));
       await tester.tap(find.byKey(const ValueKey('vehicle-save')));
       await tester.pumpAndSettle();
 
@@ -149,6 +150,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.byKey(const ValueKey('vehicle-save')));
       await tester.tap(find.byKey(const ValueKey('vehicle-save')));
       await tester.pumpAndSettle();
       expect(find.text('Marke angeben'), findsOneWidget);
@@ -178,6 +180,8 @@ void main() {
 
       current = http.Response('', 204);
       await tester.tap(find.byKey(const ValueKey('vehicle-remove')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Entfernen'));
       await tester.pumpAndSettle();
 
       expect(rec.recorded.any((r) => r.method == 'DELETE'), isTrue);

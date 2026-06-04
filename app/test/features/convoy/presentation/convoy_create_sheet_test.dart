@@ -80,7 +80,7 @@ void main() {
       await tester.pumpWidget(_host());
       await _openSheet(tester);
 
-      expect(find.text('Konvoi erstellen'), findsOneWidget);
+      expect(find.text('Konvoi starten'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
       expect(find.text('Weiter'), findsOneWidget);
     });
@@ -126,6 +126,7 @@ void main() {
       await _openSheet(tester);
 
       await tester.enterText(find.byType(TextField), 'Gamma Run');
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('convoy-create-step0-btn')));
       await tester.pumpAndSettle();
 
@@ -141,6 +142,7 @@ void main() {
       await _openSheet(tester);
 
       await tester.enterText(find.byType(TextField), 'Delta Run');
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('convoy-create-step0-btn')));
       await tester.pumpAndSettle();
 
@@ -151,7 +153,7 @@ void main() {
       expect(find.text('Delta Run'), findsOneWidget);
       // '500 m' kann in Chip + Confirm-Row doppelt vorkommen → findsWidgets
       expect(find.text('500 m'), findsWidgets);
-      expect(find.text('Erstellen'), findsOneWidget);
+      expect(find.text('Konvoi erstellen'), findsOneWidget);
     });
 
     testWidgets('vollständiger Flow popt mit Standard-500m', (tester) async {

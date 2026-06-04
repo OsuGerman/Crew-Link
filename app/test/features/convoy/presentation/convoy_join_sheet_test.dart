@@ -46,7 +46,10 @@ Future<String?> _openAndSubmit(
   await tester.tap(find.byKey(const ValueKey('open')));
   await tester.pumpAndSettle();
   if (enterCode != null) {
-    await tester.enterText(find.byType(TextField), enterCode);
+    await tester.enterText(
+      find.byType(TextField, skipOffstage: false),
+      enterCode,
+    );
   }
   await tester.tap(find.text('Beitreten'));
   await tester.pumpAndSettle();
@@ -60,8 +63,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('open')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Konvoi beitreten'), findsOneWidget);
-      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('KONVOI BEITRETEN'), findsOneWidget);
+      expect(find.byType(TextField, skipOffstage: false), findsOneWidget);
       expect(find.text('Beitreten'), findsOneWidget);
     });
 
@@ -73,7 +76,7 @@ void main() {
       await tester.tap(find.text('Beitreten'));
       await tester.pump();
 
-      expect(find.text('Konvoi beitreten'), findsOneWidget);
+      expect(find.text('KONVOI BEITRETEN'), findsOneWidget);
     });
 
     testWidgets('entered code pops with that code', (tester) async {
@@ -88,8 +91,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.descendant(
-        of: find.byType(TextField),
-        matching: find.text('PRE123'),
+        of: find.byType(TextField, skipOffstage: false),
+        matching: find.text('PRE123', skipOffstage: false),
       ), findsOneWidget);
     });
 

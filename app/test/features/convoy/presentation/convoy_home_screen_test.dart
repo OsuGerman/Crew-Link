@@ -6,6 +6,7 @@ import 'package:crew_link/core/config/api_config.dart';
 import 'package:crew_link/core/models/gps_update.dart';
 import 'package:crew_link/core/realtime/connection_status.dart';
 import 'package:crew_link/core/realtime/convoy_socket_client.dart';
+import 'package:crew_link/features/auth/application/auth_providers.dart';
 import 'package:crew_link/features/convoy/application/convoy_providers.dart';
 import 'package:crew_link/features/onboarding/application/onboarding_state.dart';
 import 'package:crew_link/features/push_to_talk/presentation/ptt_button.dart';
@@ -83,6 +84,7 @@ Widget _app(
       httpClientProvider.overrideWithValue(client),
       authTokenProvider.overrideWithValue('test-token'),
       selfMemberIdProvider.overrideWithValue('self'),
+      devSignedInOverrideProvider.overrideWith((ref) => true),
       clockProvider.overrideWithValue(
         () => DateTime.utc(2026, 5, 13, 12, 0, 30),
       ),

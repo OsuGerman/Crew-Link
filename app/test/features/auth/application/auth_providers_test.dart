@@ -5,17 +5,18 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('signedInUidProvider', () {
-    test('returns empty string when auth stream emits null', () {
+    test('returns empty string when auth stream emits null', () async {
       final container = ProviderContainer(
         overrides: [
           authStateProvider.overrideWith((_) => Stream.value(null)),
         ],
       );
       addTearDown(container.dispose);
+      await container.read(authStateProvider.future);
       expect(container.read(signedInUidProvider), '');
     });
 
-    test('returns uid when auth stream emits a user', () {
+    test('returns uid when auth stream emits a user', () async {
       final container = ProviderContainer(
         overrides: [
           authStateProvider.overrideWith(
@@ -24,6 +25,7 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
+      await container.read(authStateProvider.future);
       expect(container.read(signedInUidProvider), 'test-uid-123');
     });
   });
@@ -36,6 +38,7 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
+      await container.read(authStateProvider.future);
       final result = await container.read(authIdTokenProvider.future);
       expect(result, isNull);
     });

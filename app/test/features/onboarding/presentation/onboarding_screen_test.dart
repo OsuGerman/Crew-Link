@@ -88,7 +88,11 @@ void main() {
     testWidgets('starts on siwa step with Apple Sign-In button', (tester) async {
       await tester.pumpWidget(_wrap(container));
       await tester.pump();
-      expect(find.byKey(const ValueKey('onboarding-page-siwa')), findsOneWidget);
+      // The siwa step wrapper Padding and the nested OnboardingPageView both
+      // carry key 'onboarding-page-siwa' (ancestor + descendant), so the key
+      // legitimately matches more than one widget.
+      expect(
+          find.byKey(const ValueKey('onboarding-page-siwa')), findsWidgets);
       expect(find.byKey(const ValueKey('onboarding-signin-apple')), findsOneWidget);
     });
 
@@ -120,29 +124,23 @@ void main() {
       expect(find.byKey(const ValueKey('onboarding-page-cta')), findsOneWidget);
     });
 
-    testWidgets('cta step shows create and join buttons', (tester) async {
+    testWidgets('cta step shows the create button', (tester) async {
       await tester.pumpWidget(_wrap(container, initialStep: 2));
       await tester.pump();
       expect(find.byKey(const ValueKey('onboarding-page-cta')), findsOneWidget);
       expect(
           find.byKey(const ValueKey('onboarding-cta-create')), findsOneWidget);
-      expect(find.byKey(const ValueKey('onboarding-cta-join')), findsOneWidget);
     });
 
     testWidgets('cta create button saves profile and marks onboarding completed',
         (tester) async {
       await tester.pumpWidget(_wrap(container, initialStep: 2));
       await tester.pump();
+      // Warm up the profile provider so its async build() resolves BEFORE the
+      // tap; otherwise the still-pending build() future overwrites the
+      // completed=true state that save() sets synchronously inside _complete.
+      await container.read(onboardingProfileProvider.future);
       await tester.tap(find.byKey(const ValueKey('onboarding-cta-create')));
-      await tester.pump();
-      final profile = await container.read(onboardingProfileProvider.future);
-      expect(profile.completed, isTrue);
-    });
-
-    testWidgets('cta join button also completes onboarding', (tester) async {
-      await tester.pumpWidget(_wrap(container, initialStep: 2));
-      await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('onboarding-cta-join')));
       await tester.pump();
       final profile = await container.read(onboardingProfileProvider.future);
       expect(profile.completed, isTrue);
