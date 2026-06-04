@@ -16,6 +16,11 @@ const envSchema = z.object({
   LIVEKIT_URL: z.string().url().optional(),
   LIVEKIT_API_KEY: z.string().min(1).optional(),
   LIVEKIT_API_SECRET: z.string().min(1).optional(),
+  // Firebase project id — when set, the backend verifies real Firebase ID
+  // tokens (issuer/audience + Google JWKS) and uses the Firebase UID as the
+  // stable user identity. When unset (local dev / integration tests), the
+  // bearer token is treated as the user id directly.
+  FIREBASE_PROJECT_ID: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

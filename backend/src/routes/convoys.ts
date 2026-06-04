@@ -1,8 +1,7 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, preHandlerHookHandler } from 'fastify';
 import { z } from 'zod';
 
 import type { DatabaseHandle } from '../db/client.js';
-import { createDevAuthHook } from '../services/auth_dev.js';
 import {
   ConvoyNotFoundError,
   NotConvoyOwnerError,
@@ -51,13 +50,14 @@ const patchBodySchema = z.object({
 
 export interface ConvoyRoutesOptions {
   db: DatabaseHandle;
+  authHook: preHandlerHookHandler;
 }
 
 export function createConvoyRoutes(
   options: ConvoyRoutesOptions,
 ): FastifyPluginAsync {
   return async (app) => {
-    app.addHook('preHandler', createDevAuthHook(options.db.db));
+    app.addHook('preHandler', options.authHook);
 
     app.post('/convoys', async (req, reply) => {
       const result = createBodySchema.safeParse(req.body);

@@ -75,7 +75,7 @@ describeIfDb('convoy lifecycle routes', () => {
     expect(body.inviteCode).toMatch(/^[A-Z2-9]{6}$/);
     expect(body.members).toHaveLength(1);
     expect(body.members[0]!.isLeader).toBe(true);
-    expect(body.members[0]!.displayName).toContain('Dev');
+    expect(body.members[0]!.displayName).toContain('alice');
     expect(body.members[0]!.vehicleProfileId).toBeNull();
     expect(body.members[0]!.vehicle).toBeNull();
   });

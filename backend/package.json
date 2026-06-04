@@ -22,8 +22,9 @@
     "@fastify/sensible": "^6.0.3",
     "@fastify/websocket": "^11.2.0",
     "drizzle-orm": "^0.45.2",
-    "ioredis": "^5.4.2",
     "fastify": "^5.2.0",
+    "ioredis": "^5.4.2",
+    "jose": "^6.2.3",
     "livekit-server-sdk": "^2.15.3",
     "postgres": "^3.4.9",
     "zod": "^3.24.1"

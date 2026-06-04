@@ -1,8 +1,7 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, preHandlerHookHandler } from 'fastify';
 import { z } from 'zod';
 
 import type { DatabaseHandle } from '../db/client.js';
-import { createDevAuthHook } from '../services/auth_dev.js';
 import {
   deleteUserVehicle,
   getUserVehicle,
@@ -38,13 +37,14 @@ const putBodySchema = z.object({
 
 export interface VehicleRoutesOptions {
   db: DatabaseHandle;
+  authHook: preHandlerHookHandler;
 }
 
 export function createVehicleRoutes(
   options: VehicleRoutesOptions,
 ): FastifyPluginAsync {
   return async (app) => {
-    app.addHook('preHandler', createDevAuthHook(options.db.db));
+    app.addHook('preHandler', options.authHook);
 
     app.get('/vehicles/me', async (req, reply) => {
       const vehicle = await getUserVehicle(options.db.db, req.authUser!.id);

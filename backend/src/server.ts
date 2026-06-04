@@ -3,7 +3,7 @@ import websocketPlugin from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 import type { Env } from './config/env.js';
-import { createDatabase } from './db/client.js';
+import { createDatabase, type DatabaseHandle } from './db/client.js';
 import {
   createConvoyGateway,
   type ConvoyGatewayOptions,
@@ -12,10 +12,21 @@ import { createConvoyRoutes } from './routes/convoys.js';
 import { healthRoute } from './routes/health.js';
 import { createPttRoutes } from './routes/ptt.js';
 import { createVehicleRoutes } from './routes/vehicles.js';
+import {
+  createAuthHook,
+  createFirebaseTokenVerifier,
+  createMemberResolver,
+  devTokenVerifier,
+  type TokenVerifier,
+} from './services/auth.js';
 
 export interface BuildOptions {
   env: Env;
   gateway?: ConvoyGatewayOptions;
+  // Override the token verifier (tests inject a fake). Defaults to real
+  // Firebase verification when FIREBASE_PROJECT_ID is set, else the dev
+  // verifier (token IS the user id).
+  verifyToken?: TokenVerifier;
 }
 
 export async function buildApp(options: BuildOptions): Promise<FastifyInstance> {
@@ -29,7 +40,28 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
   await app.register(websocketPlugin);
   await app.register(healthRoute);
 
+  const verifyToken: TokenVerifier =
+    options.verifyToken ??
+    (options.env.FIREBASE_PROJECT_ID !== undefined
+      ? createFirebaseTokenVerifier(options.env.FIREBASE_PROJECT_ID)
+      : devTokenVerifier);
+
+  // DB is created first: both the gateway's member resolver and the route auth
+  // hook need it. Routes that need persistence stay gated behind DATABASE_URL
+  // so tests that only touch health/gateway keep running without one.
+  let dbHandle: DatabaseHandle | undefined;
+  if (options.env.DATABASE_URL !== undefined) {
+    dbHandle = createDatabase({ url: options.env.DATABASE_URL });
+    const handle = dbHandle;
+    app.addHook('onClose', async () => {
+      await handle.sql.end();
+    });
+  }
+
   const gatewayOptions: ConvoyGatewayOptions = { ...options.gateway };
+  if (gatewayOptions.resolveMember === undefined && dbHandle !== undefined) {
+    gatewayOptions.resolveMember = createMemberResolver(dbHandle.db, verifyToken);
+  }
   if (options.env.REDIS_URL !== undefined) {
     const { RedisFanout } = await import('./realtime/redis_fanout.js');
     const redisFanout = new RedisFanout(options.env.REDIS_URL);
@@ -41,16 +73,13 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
   }
   await app.register(createConvoyGateway(gatewayOptions));
 
-  // Routes that need DB stay gated behind DATABASE_URL so tests that
-  // don't touch persistence (health, gateway) keep running without one.
-  if (options.env.DATABASE_URL !== undefined) {
-    const dbHandle = createDatabase({ url: options.env.DATABASE_URL });
-    app.addHook('onClose', async () => {
-      await dbHandle.sql.end();
-    });
-    await app.register(createConvoyRoutes({ db: dbHandle }));
-    await app.register(createVehicleRoutes({ db: dbHandle }));
-    await app.register(createPttRoutes({ db: dbHandle, env: options.env }));
+  if (dbHandle !== undefined) {
+    const authHook = createAuthHook(dbHandle.db, verifyToken);
+    await app.register(createConvoyRoutes({ db: dbHandle, authHook }));
+    await app.register(createVehicleRoutes({ db: dbHandle, authHook }));
+    await app.register(
+      createPttRoutes({ db: dbHandle, env: options.env, authHook }),
+    );
   }
 
   return app;

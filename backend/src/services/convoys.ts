@@ -208,6 +208,7 @@ async function loadConvoyPayload(
   const memberRows = await db
     .select({
       userId: convoyMembers.userId,
+      externalId: users.appleUserId,
       vehicleProfileId: convoyMembers.vehicleId,
       role: convoyMembers.role,
       displayName: users.displayName,
@@ -240,7 +241,10 @@ async function loadConvoyPayload(
     proximityWarningMeters: convoy.proximityThresholdM,
     createdAt: convoy.createdAt.toISOString(),
     members: memberRows.map((m) => ({
-      id: m.userId,
+      // External member id = Firebase UID (stable, matches the app's
+      // selfMemberId + the WS/LiveKit identity). Internal users.id (UUID)
+      // stays server-side for FK writes only.
+      id: m.externalId,
       displayName: m.displayName,
       vehicleProfileId: m.vehicleProfileId,
       vehicle: m.vId !== null

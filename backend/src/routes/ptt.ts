@@ -1,10 +1,9 @@
 import { and, eq, isNull } from 'drizzle-orm';
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, preHandlerHookHandler } from 'fastify';
 
 import type { Env } from '../config/env.js';
 import type { DatabaseHandle } from '../db/client.js';
 import { convoyMembers } from '../db/schema/convoys.js';
-import { createDevAuthHook } from '../services/auth_dev.js';
 import { convoyRoomName, createPttToken } from '../services/livekit_tokens.js';
 
 const HTTP_NOT_FOUND = 404;
@@ -19,11 +18,12 @@ export interface PttTokenResponse {
 export interface PttRoutesOptions {
   db: DatabaseHandle;
   env: Env;
+  authHook: preHandlerHookHandler;
 }
 
 export function createPttRoutes(options: PttRoutesOptions): FastifyPluginAsync {
   return async (app) => {
-    app.addHook('preHandler', createDevAuthHook(options.db.db));
+    app.addHook('preHandler', options.authHook);
 
     app.post<{ Params: { convoyId: string } }>(
       '/convoys/:convoyId/ptt-token',
@@ -70,7 +70,9 @@ export function createPttRoutes(options: PttRoutesOptions): FastifyPluginAsync {
           apiKey: LIVEKIT_API_KEY,
           apiSecret: LIVEKIT_API_SECRET,
           roomName,
-          participantIdentity: userId,
+          // External member id (Firebase UID) so the client can map the
+          // LiveKit participant to a convoy member (whose id is the same UID).
+          participantIdentity: req.authUser!.externalId,
           participantName: req.authUser!.displayName,
         });
 
