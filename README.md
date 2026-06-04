@@ -1,72 +1,40 @@
-<div align="center">
+# Crew Link
 
-# 🏍️ Crew Link
+Konvoi-Koordination für Fahrzeuggruppen: Live-GPS-Karte, automatische Abstandswarnung, Push-to-Talk und CarPlay. Flutter-App (iOS/Android) mit einem Fastify/PostGIS-Backend.
 
-**Halte deinen Konvoi zusammen.**
+![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20CarPlay-1a1a1a?style=flat-square)
+![Flutter](https://img.shields.io/badge/Flutter-3.41-02569B?style=flat-square&logo=flutter)
+![License](https://img.shields.io/badge/license-proprietary-lightgrey?style=flat-square)
 
-Live-GPS-Karte · Automatische Abstandswarnung · Push-to-Talk · CarPlay-Integration
+## Worum geht's
 
-[![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20CarPlay-1a1a1a?style=flat-square)](#-plattformen)
-[![Flutter](https://img.shields.io/badge/Flutter-3.41-02569B?style=flat-square&logo=flutter)](https://flutter.dev)
-[![Backend](https://img.shields.io/badge/Backend-Fastify%20%2B%20PostGIS-009688?style=flat-square&logo=node.js)](backend/)
-[![License](https://img.shields.io/badge/license-proprietary-ff6b35?style=flat-square)](#-lizenz)
+Crew Link hält Fahrzeuggruppen auf gemeinsamen Touren zusammen — Motorrad-Touren, Roadtrips, Off-Road-Crews. Ein Teilnehmer startet einen Konvoi, alle anderen treten per Link oder Code bei. Die App zeigt jeden live auf der Karte, warnt automatisch wenn jemand zurückfällt, und bietet eine Push-to-Talk-Funkverbindung, die auch über CarPlay funktioniert.
 
-[Features](#-features) · [Quickstart](#-quickstart) · [Architektur](#-architektur) · [TestFlight](TESTFLIGHT.md) · [AltStore-Sideload](#-altstore-sideload)
+## Features
 
-</div>
+- **Live-Konvoi-Karte** — alle Teilnehmer in Echtzeit auf einer MapLibre-Karte. Updates laufen über WebSocket, nicht über Polling.
+- **Abstandswarnung** — fällt jemand zu weit zurück, bekommen Hintermann und Konvoi-Leader eine Push-Notification.
+- **Push-to-Talk** — WebRTC mit LiveKit-SFU, bedienbar per Touchscreen oder CarPlay-Taste.
+- **CarPlay** — Karte und PTT auf dem Fahrzeug-Display, über eine Swift-Bridge an die Dart-Seite angebunden.
+- **Konvoi-Lifecycle** — erstellen, per Code beitreten, verlassen. REST-API; das Apple-Sign-In-Token wird zum Realtime-Gateway durchgereicht.
+- **Fahrzeugprofile** — mehrere Fahrzeuge pro Nutzer; das aktive Profil bestimmt Standard-Abstand und Karten-Avatar.
+- **Backend** — Fastify mit Drizzle/PostGIS für Geo-Queries, Redis-Fanout für horizontal skalierbare WebSockets.
 
----
-
-## 🎯 Worum geht's
-
-Crew Link ist ein Konvoi-Koordinator für Fahrzeuggruppen — gedacht für Motorrad-Touren, Roadtrips und Off-Road-Crews, die zusammen unterwegs sind und nicht ständig den Rückspiegel checken wollen, ob der Hintermann noch da ist.
-
-Ein Klick startet einen Konvoi, der Rest der Gruppe joint per Link. Die App zeigt jeden Teilnehmer live auf der Karte, warnt automatisch wenn jemand zurückfällt, und bietet eine Push-to-Talk-Funkverbindung, die auch über CarPlay funktioniert.
-
----
-
-## ✨ Features
-
-| | |
-|---|---|
-| 🗺️ **Live-Konvoi-Karte** | Alle Teilnehmer in Echtzeit auf einer MapLibre-Karte. Updates fließen ausschließlich über WebSocket — kein Polling, keine kalten Caches. |
-| 🚨 **Abstandswarnung** | Wenn jemand zu weit zurückfällt, bekommen Hintermann und Konvoi-Leader eine Push-Notification — bevor jemand abgehängt wird. |
-| 🎙️ **Push-to-Talk** | WebRTC-basiertes Walkie-Talkie mit LiveKit-SFU. Halten → reden → loslassen. Bedienbar über Touchscreen oder CarPlay-Taste. |
-| 🚗 **CarPlay-Integration** | Karte und PTT direkt aufs Auto-Display. Eigene Swift-Bridge, die mit Dart über Method-Channels spricht. |
-| 🛣️ **Konvoi-Lifecycle** | Konvoi erstellen, per Link/Code beitreten, verlassen — REST-API mit Apple-Sign-In-Token-Bridge zum Realtime-Gateway. |
-| 🏍️ **Fahrzeugprofile** | Pro User mehrere Fahrzeuge (Bike/Auto/Van), das aktive Profil bestimmt Default-Abstand und Avatar in der Karte. |
-| 📡 **Skalierbares Backend** | Fastify + Drizzle/PostGIS für Geo-Queries, Redis-Fanout für horizontale WebSocket-Skalierung. |
-| 🧪 **Test-getrieben** | Widget-Tests, Unit-Tests, Integration-Tests. Jede Feature-Datei kommt mit Test ins Repo. |
-
----
-
-## 📦 Monorepo-Struktur
+## Projektstruktur
 
 ```
-crew-link/
-├── app/                     # Flutter-App (Dart, Riverpod, Freezed, MapLibre)
-│   ├── lib/features/        # Feature-First: auth, convoy, maps, push_to_talk, …
-│   ├── ios/                 # Native iOS + CarPlay-Bridge (Swift)
-│   └── android/             # Native Android
-│
-├── backend/                 # Fastify + TypeScript
-│   └── src/
-│       ├── routes/          # REST-API (Konvoi-Lifecycle, Auth)
-│       ├── realtime/        # WebSocket-Gateway + Redis-Fanout
-│       └── db/              # Drizzle-Schema + PostGIS-Migrations
-│
-├── infra/                   # docker-compose: Postgres + PostGIS
-├── fastlane/                # iOS-Release-Pipeline (TestFlight, App Store)
-├── store/                   # App-Store-Texte, CarPlay-Review-Notes
-├── docs/                    # Landing-Page (GitHub Pages) + Privacy
-└── .github/workflows/       # CI: app · android · ios · backend · testflight · altstore-ipa
+app/        Flutter-App (Riverpod, Freezed, MapLibre), inkl. nativem iOS-/Android-Code
+backend/    Fastify + TypeScript: REST-Routen, WebSocket-Gateway, Drizzle-Schema/PostGIS
+infra/      docker-compose für Postgres + PostGIS
+fastlane/   iOS-Release (TestFlight, App Store)
+docs/       Landing-Page und Datenschutz
+.github/    CI-Workflows
 ```
 
----
+## Entwicklung
 
-## 🚀 Quickstart
+Flutter-App:
 
-### Flutter-App
 ```sh
 cd app
 flutter pub get
@@ -75,143 +43,82 @@ flutter test
 flutter run
 ```
 
-> **Windows-Tipp:** Eine vendored Flutter-SDK liegt unter `flutter/bin/flutter.bat`. Einmal pro Session in PATH legen:
-> ```powershell
-> $env:PATH = "$PWD\..\flutter\bin;$env:PATH"
-> ```
+Unter Windows liegt eine vendored Flutter-SDK unter `flutter/bin/flutter.bat`.
 
-### Backend
+Backend:
+
 ```sh
 cd backend
 npm install
 npm test
-npm run dev      # startet Fastify mit Hot-Reload
+npm run dev
 ```
 
-### Lokale Postgres + PostGIS
+Lokale Datenbank:
+
 ```sh
-cd infra
-docker compose up -d
-cd ../backend
-npm run db:generate     # Drizzle-Migration (fixt PostGIS-Identifier-Quoting)
-npm run db:migrate
+cd infra && docker compose up -d
+cd ../backend && npm run db:generate && npm run db:migrate
 ```
 
----
+## Architektur
 
-## 🧱 Architektur
+Die Flutter-App und die CarPlay-Bridge sprechen mit dem Fastify-Backend über drei Kanäle: REST für Auth und Konvoi-Lifecycle, WebSocket für den GPS-Stream, WebRTC für Push-to-Talk. Persistiert wird in Postgres mit PostGIS; das Audio-Fan-out übernimmt ein LiveKit-SFU; Redis verteilt WebSocket-Events über mehrere Backend-Instanzen.
 
-```
-       ┌────────────────────┐         ┌────────────────────┐
-       │   Flutter App      │         │   CarPlay-Bridge   │
-       │   (iOS / Android)  │◄───────►│   (Swift)          │
-       └─────────┬──────────┘         └────────────────────┘
-                 │
-       REST (Auth, Lifecycle)
-       WebSocket (GPS-Stream)
-       WebRTC (Push-to-Talk)
-                 │
-       ┌─────────▼──────────┐         ┌────────────────────┐
-       │   Fastify Backend  │◄───────►│   Redis (Fanout)   │
-       │   (TypeScript)     │         └────────────────────┘
-       └─────────┬──────────┘
-                 │
-       ┌─────────▼──────────┐         ┌────────────────────┐
-       │  Postgres+PostGIS  │         │  LiveKit SFU       │
-       │  (Geo-Persistence) │         │  (Audio Fan-Out)   │
-       └────────────────────┘         └────────────────────┘
-```
+Konventionen im Repo: REST und Realtime liegen in getrennten Layern, GPS-Updates fließen ausschließlich über WebSocket, die Flutter-Seite ist feature-first unter `app/lib/features/` organisiert, und Tests entstehen vor dem Produktionscode.
 
-### Spielregeln
-- **REST und Realtime** leben in getrennten Layern (`backend/src/routes/` vs `backend/src/realtime/`).
-- **GPS-Updates fließen ausschließlich** über WebSocket — kein REST-Polling.
-- **PTT-Audio** läuft über WebRTC + LiveKit-SFU für skalierbares Fan-Out.
-- **Persistenz** ist Postgres + PostGIS only.
-- **Flutter** folgt einem Feature-First-Layout unter `app/lib/features/`.
-- **Endpoints** sind spec-first (OpenAPI/JSON-Schema) vor der Implementierung.
-- **TDD**: Tests kommen vor dem Produktionscode — sowohl in `app/` als auch in `backend/`.
+## Plattform-Status
 
----
+| Plattform | Stand |
+|-----------|-------|
+| iOS       | Build grün, TestFlight-Pipeline via Fastlane — siehe [TESTFLIGHT.md](TESTFLIGHT.md) |
+| Android   | Build grün, Play-Store-Listing noch offen |
+| CarPlay   | Bridge implementiert, Apple-Approval offen |
+| Web       | Demo-Preview über `main_web_preview.dart` mit Mock-Backend |
 
-## 📱 Plattformen
+## Dev-Sideload ohne bezahlten Apple-Account
 
-| Plattform | Status | Anmerkung |
-|---|---|---|
-| **iOS** | ✅ Build grün | TestFlight-Pipeline via Fastlane fertig — siehe [TESTFLIGHT.md](TESTFLIGHT.md) |
-| **CarPlay** | ✅ Bridge implementiert | Approval bei Apple offen (Navigation-Category) |
-| **Android** | ✅ Build grün | Play-Store-Listing noch nicht aufgebaut |
-| **Web** | 🧪 Demo-Preview | `main_web_preview.dart` mit Mock-Backend für UI-Reviews |
+Der Workflow `.github/workflows/altstore-ipa.yml` baut auf Knopfdruck eine unsignierte IPA, die sich per [AltStore](https://altstore.io) mit einer kostenlosen Apple-ID aufs eigene iPhone sideloaden lässt:
 
----
+1. GitHub → Actions → "AltStore IPA" → Run workflow
+2. Artifact herunterladen und in der AltStore-App auf dem iPhone installieren
+3. Profil unter Einstellungen → Allgemein → VPN & Geräteverwaltung vertrauen
 
-## 🧪 AltStore-Sideload
+Der Workflow strippt dafür Free-Tier-inkompatible Entitlements (Sign-In, Push, CarPlay, App-Groups), entfernt die CarPlay-Scene aus der Info.plist und schreibt die Bundle-ID auf `de.crewlink.app.altstore` um.
 
-Für Dev-Builds ohne bezahltes Apple-Developer-Program: der Workflow [`.github/workflows/altstore-ipa.yml`](.github/workflows/altstore-ipa.yml) baut auf Knopfdruck eine **unsignierte IPA**, die per [AltStore](https://altstore.io) mit einer Free-Apple-ID aufs eigene iPhone gesideloaded werden kann.
+Wichtig: Crew Link bindet viele native Frameworks ein (Firebase, WebRTC/LiveKit, MapLibre). Auf manchen Geräten beendet iOS eine mit kostenloser Apple-ID signierte App direkt beim Start, ohne Crash-Log zu schreiben. Zuverlässig läuft iOS erst mit einem bezahlten Apple-Developer-Account (TestFlight oder Ad-Hoc mit registrierter Geräte-UDID). Zum reinen Durchklicken der UI eignet sich der Demo-Build (`lib/main_web_preview.dart`, gemockt) — auch als Android-APK.
 
-So geht's:
+## Setup vor dem Geräte-Betrieb
 
-1. GitHub → **Actions** → **AltStore IPA** → **Run workflow**
-2. Artifact `CrewLink-AltStore-N` runterladen → AltStore-App auf dem iPhone → IPA installieren
-3. Profil unter *Settings → General → VPN & Device Management* vertrauen
+Der Code greift mit gesetzten Credentials sofort und degradiert ohne sie sauber (kein Start-Crash):
 
-Was der Workflow automatisch strippt, damit AltStore re-signen kann:
-- Free-Tier-inkompatible Entitlements (Sign-In, Push, CarPlay, App-Groups)
-- CarPlay-Scene aus der `Info.plist`
-- Bundle-ID auf `de.crewlink.app.altstore` umgeschrieben → koexistiert mit späterem TestFlight-Build
+| Bereich | Einrichtung | ohne Setup |
+|---------|-------------|------------|
+| Firebase (Auth, FCM, Crashlytics, Analytics) | `flutterfire configure --project=crew-link` | Platzhalter; `Firebase.initializeApp` ist in try/catch gekapselt, Firebase-Features bleiben aus |
+| Android-Release-Signing | Env-Vars `RELEASE_KEYSTORE_FILE`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` | Fallback auf Debug-Key (nicht Play-tauglich) |
+| iOS-Signing | `DEVELOPMENT_TEAM` in der Xcode-Config plus Apple-Secrets für TestFlight | Archive/Upload erfordert manuelle Team-Wahl |
+| CarPlay | Apple-Approval für `carplay-communication` | Bridge implementiert, Review offen |
 
-> ⚠️ **Free-Apple-ID-Limit:** Crew Link bettet viele native Frameworks ein (Firebase, WebRTC/LiveKit, MapLibre …). Auf manchen Geräten beendet iOS (AMFI) eine mit **kostenloser** Apple-ID signierte App direkt beim Start — *ohne* Crash-Log. Zuverlässig läuft iOS erst mit einem **bezahlten Apple-Developer-Account** (TestFlight oder Ad-Hoc mit registrierter Geräte-UDID). Zum reinen Durchklicken der UI ohne Backend eignet sich der Demo-Build (`lib/main_web_preview.dart`, gemockt) — auch als Android-APK.
+Das Hintergrund-Tracking stuft die Standort-Berechtigung beim Konvoi-Beitritt auf "Always" hoch und nutzt auf Android einen Foreground-Service, damit die Position auch im Hintergrund oder bei gesperrtem Display weiterläuft.
 
----
+## Release-Pipeline
 
-## 🚢 Release-Pipeline
+| Workflow | Trigger | Ergebnis |
+|----------|---------|----------|
+| CI | jeder Push | Flutter- und Backend-Tests, iOS-/Android-Builds |
+| TestFlight | manuell oder wöchentlich | signierte IPA → App Store Connect |
+| AltStore IPA | manuell | unsignierte IPA als Artifact |
 
-| Workflow | Trigger | Output |
-|---|---|---|
-| **CI** | jeder Push | Flutter-Tests, Backend-Tests, iOS-/Android-Builds |
-| **TestFlight** | `workflow_dispatch` oder wöchentlich Mo 06:00 UTC | Signierte IPA → App Store Connect → Tester-Gruppe |
-| **AltStore IPA** | `workflow_dispatch` | Unsignierte IPA als Artifact (30 Tage Retention) |
+Details zum TestFlight-Setup (Fastlane, Match, CarPlay-Approval) stehen in [TESTFLIGHT.md](TESTFLIGHT.md).
 
-Komplette TestFlight-Beta-Anleitung inkl. Fastlane-Setup, Match-Repo und CarPlay-Approval-Prozess: **[TESTFLIGHT.md](TESTFLIGHT.md)**.
+## Tech-Stack
 
----
+- **Mobile:** Flutter 3.41, Dart 3.11, Riverpod, Freezed, go_router, MapLibre, Firebase (Auth, Crashlytics, FCM), LiveKit, WebRTC, Sentry
+- **Nativ:** Swift (CarPlay-Bridge), Kotlin
+- **Backend:** Node.js, Fastify, TypeScript, Drizzle ORM, Pino, Vitest
+- **Daten & Infra:** PostgreSQL mit PostGIS, Redis, Docker Compose
+- **Release:** Fastlane, GitHub Actions
 
-## 🛠️ Tech-Stack
+## Lizenz
 
-**Mobile:** Flutter 3.41 · Dart 3.11 · Riverpod · Freezed · go_router · MapLibre · Firebase (Auth, Crashlytics, FCM) · LiveKit · WebRTC · Sentry
-
-**Native:** Swift (CarPlay-Bridge) · Kotlin
-
-**Backend:** Node.js · Fastify · TypeScript · Drizzle ORM · Pino (Logger) · Vitest
-
-**Persistenz & Infra:** PostgreSQL + PostGIS · Redis (Fanout) · Docker Compose
-
-**Release:** Fastlane · GitHub Actions · AltStore (Dev-Sideload)
-
----
-
-## ⚙️ Setup & bekannte Einschränkungen
-
-Vor dem ersten echten Geräte-Betrieb müssen ein paar Credentials/Configs gesetzt werden — der Code ist so verdrahtet, dass er **mit** den Werten sofort greift und ohne sie sauber degradiert (kein Start-Crash):
-
-| Was | Wie | Status ohne Setup |
-|---|---|---|
-| **Firebase** (Auth, FCM, Crashlytics, Analytics) | `flutterfire configure --project=crew-link` → echte `firebase_options.dart` / `google-services.json` / `GoogleService-Info.plist` | Platzhalter; `Firebase.initializeApp` ist in `try/catch` gekapselt → App startet, Firebase-Features aus |
-| **Android-Release-Signing** | Env-Vars `RELEASE_KEYSTORE_FILE` / `RELEASE_STORE_PASSWORD` / `RELEASE_KEY_ALIAS` / `RELEASE_KEY_PASSWORD` | Fallback auf Debug-Key (nicht Play-uploadfähig) |
-| **iOS-Signing** | `DEVELOPMENT_TEAM` in der Xcode-Config + Apple-Secrets für TestFlight (siehe [TESTFLIGHT.md](TESTFLIGHT.md)) | Archive/Upload erfordert manuelle Team-Auswahl |
-| **CarPlay** | Apple-Approval für `carplay-communication` | Bridge implementiert, Review offen |
-
-**Hintergrund-Tracking:** Die App stuft die Standort-Berechtigung beim Konvoi-Beitritt auf *Always* hoch und nutzt einen Android-Foreground-Service, damit das Live-Tracking auch im Hintergrund/gesperrt weiterläuft.
-
----
-
-## 📜 Lizenz
-
-Proprietär — © 2026 Crew Link. Code ist öffentlich einsehbar, aber **nicht** zur kommerziellen Wiederverwertung freigegeben. Pull Requests und Issues sind willkommen.
-
----
-
-<div align="center">
-
-Made with 🏍️ + ☕ — auf Tour bleiben, nicht zurückgelassen werden.
-
-</div>
+Proprietär, © 2026 Crew Link. Der Code ist öffentlich einsehbar, aber nicht zur kommerziellen Wiederverwertung freigegeben.
