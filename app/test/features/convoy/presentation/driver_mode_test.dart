@@ -102,16 +102,16 @@ Future<void> _settle(WidgetTester tester) async {
 
 Future<void> _enterActiveConvoy(WidgetTester tester) async {
   await tester.tap(find.text('Neuen Konvoi starten'));
-  await tester.pumpAndSettle();
+  await _settle(tester);
   // ConvoyCreateSheet is a 3-step wizard: name -> threshold -> confirm.
   await tester.enterText(find.byType(TextField), 'Trip');
   await tester.pump();
   await tester.tap(find.byKey(const ValueKey('convoy-create-step0-btn')));
-  await tester.pumpAndSettle();
+  await _settle(tester);
   await tester.tap(find.byKey(const ValueKey('convoy-create-step1-btn')));
-  await tester.pumpAndSettle();
+  await _settle(tester);
   await tester.tap(find.byKey(const ValueKey('convoy-create-step2-btn')));
-  await tester.pumpAndSettle();
+  await _settle(tester);
 }
 
 void main() {
