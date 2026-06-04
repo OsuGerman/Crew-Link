@@ -64,6 +64,8 @@ describeIfDb('PostGIS schema integration', () => {
       }),
     ).rejects.toThrow();
 
+    // Convoy referenziert owner per FK -> erst den Convoy, dann den User loeschen.
+    await handle.db.delete(convoys).where(eq(convoys.ownerUserId, owner!.id));
     await handle.db.delete(users).where(eq(users.id, owner!.id));
   });
 
