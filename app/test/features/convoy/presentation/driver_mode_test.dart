@@ -90,7 +90,7 @@ Widget _app({_FakeSocket? socket}) {
 }
 
 Future<void> _enterActiveConvoy(WidgetTester tester) async {
-  await tester.tap(find.text('Neuen Konvoi erstellen'));
+  await tester.tap(find.text('Neuen Konvoi starten'));
   await tester.pumpAndSettle();
   // ConvoyCreateSheet is a 3-step wizard: name -> threshold -> confirm.
   await tester.enterText(find.byType(TextField), 'Trip');
@@ -152,7 +152,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('driver-leave-button')));
       await tester.pumpAndSettle();
-      expect(find.text('Neuen Konvoi erstellen'), findsOneWidget);
+      expect(find.text('Neuen Konvoi starten'), findsOneWidget);
     });
 
     testWidgets('proximity warning becomes a prominent card in driver mode',

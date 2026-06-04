@@ -104,7 +104,7 @@ Widget _app(
 
 /// Navigates the full 3-step ConvoyCreateSheet and submits.
 Future<void> _doCreate(WidgetTester tester, {String name = 'Trip'}) async {
-  await tester.tap(find.text('Neuen Konvoi erstellen'));
+  await tester.tap(find.text('Neuen Konvoi starten'));
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField), name);
   await tester.pump();
@@ -122,7 +122,7 @@ void main() {
       await tester.pumpWidget(
         _app(_client((req) => http.Response('{}', 200))),
       );
-      expect(find.text('Neuen Konvoi erstellen'), findsOneWidget);
+      expect(find.text('Neuen Konvoi starten'), findsOneWidget);
       expect(find.text('Konvoi beitreten'), findsOneWidget);
     });
 
@@ -183,7 +183,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Fehler'), findsOneWidget);
-      expect(find.text('Neuen Konvoi erstellen'), findsOneWidget);
+      expect(find.text('Neuen Konvoi starten'), findsOneWidget);
     });
 
     testWidgets('leave button calls DELETE /convoys/:id/membership and returns to lobby',
@@ -208,7 +208,7 @@ void main() {
       final deleteReq = requests.firstWhere((r) => r.method == 'DELETE');
       expect(deleteReq.url.path, '/convoys/c1/membership');
       expect(deleteReq.headers['Authorization'], 'Bearer test-token');
-      expect(find.text('Neuen Konvoi erstellen'), findsOneWidget);
+      expect(find.text('Neuen Konvoi starten'), findsOneWidget);
     });
 
     testWidgets('leave API failure shows snackbar and stays in active view',
@@ -229,7 +229,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Fehler'), findsOneWidget);
-      expect(find.text('Neuen Konvoi erstellen'), findsNothing);
+      expect(find.text('Neuen Konvoi starten'), findsNothing);
     });
 
     testWidgets('live members tile lists one row per active member',

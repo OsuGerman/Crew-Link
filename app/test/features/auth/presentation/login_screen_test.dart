@@ -97,13 +97,9 @@ void main() {
       await tester.pump(); // render the error widget
 
       expect(find.byKey(const ValueKey('login-error')), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('login-error')),
-          matching: find.textContaining('apple-failed'),
-        ),
-        findsOneWidget,
-      );
+      // login-error IS the Text holding the message, so assert its content
+      // directly (find.descendant would look for a nested Text and find none).
+      expect(find.textContaining('apple-failed'), findsOneWidget);
     });
   });
 }
