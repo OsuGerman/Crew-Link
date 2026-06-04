@@ -173,7 +173,8 @@ void main() {
       await tester.tap(find.text('Konvoi beitreten'));
       await _settle(tester);
 
-      await tester.enterText(find.byType(TextField), 'XYZ789');
+      await tester.enterText(
+          find.byType(TextField, skipOffstage: false), 'XYZ789');
       await tester.tap(find.text('Beitreten'));
       await _settle(tester);
 
@@ -190,7 +191,8 @@ void main() {
       await tester.pumpWidget(_app(client));
       await tester.tap(find.text('Konvoi beitreten'));
       await _settle(tester);
-      await tester.enterText(find.byType(TextField), 'BAD');
+      await tester.enterText(
+          find.byType(TextField, skipOffstage: false), 'BADXYZ');
       await tester.tap(find.text('Beitreten'));
       await _settle(tester);
 
@@ -211,10 +213,13 @@ void main() {
       await tester.pumpWidget(_app(client));
       await _doCreate(tester);
 
-      final leaveFinder = find.text('Konvoi verlassen');
+      final leaveFinder = find.byKey(const ValueKey('leave-convoy-action'));
       await tester.ensureVisible(leaveFinder);
       await _settle(tester);
       await tester.tap(leaveFinder);
+      await _settle(tester);
+      // _LeaveButton opens a confirm dialog; tap its 'Verlassen' action.
+      await tester.tap(find.text('Verlassen'));
       await _settle(tester);
 
       final deleteReq = requests.firstWhere((r) => r.method == 'DELETE');
@@ -234,10 +239,13 @@ void main() {
       await tester.pumpWidget(_app(client));
       await _doCreate(tester);
 
-      final leaveFinder = find.text('Konvoi verlassen');
+      final leaveFinder = find.byKey(const ValueKey('leave-convoy-action'));
       await tester.ensureVisible(leaveFinder);
       await _settle(tester);
       await tester.tap(leaveFinder);
+      await _settle(tester);
+      // _LeaveButton opens a confirm dialog; tap its 'Verlassen' action.
+      await tester.tap(find.text('Verlassen'));
       await _settle(tester);
 
       expect(find.textContaining('Fehler'), findsOneWidget);
@@ -273,9 +281,9 @@ void main() {
 
       expect(find.byKey(const ValueKey('member-row-self')), findsOneWidget);
       expect(find.byKey(const ValueKey('member-row-buddy')), findsOneWidget);
-      expect(find.textContaining('Du · hier'), findsOneWidget);
-      // buddy is ~5km north; should be shown in km, not m.
-      expect(find.textContaining('km entfernt'), findsOneWidget);
+      expect(find.text('Du'), findsWidgets);
+      // buddy is ~5km north; distance pill shows km (e.g. '5.x km').
+      expect(find.textContaining('km'), findsWidgets);
     });
 
     testWidgets('map button appears in AppBar when convoy is active',
