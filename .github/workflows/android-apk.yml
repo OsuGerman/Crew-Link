@@ -22,6 +22,14 @@ on:
         description: 'release | debug'
         required: false
         default: 'release'
+      api_url:
+        description: 'Backend REST URL (https://…) — sets CREW_LINK_API_URL'
+        required: false
+        default: ''
+      ws_url:
+        description: 'Backend WS URL (wss://…) — sets CREW_LINK_WS_URL'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -54,9 +62,16 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build APK
+        env:
+          API_URL: ${{ github.event.inputs.api_url }}
+          WS_URL: ${{ github.event.inputs.ws_url }}
         run: |
+          DEFINES=""
+          [ -n "$API_URL" ] && DEFINES="$DEFINES --dart-define=CREW_LINK_API_URL=$API_URL"
+          [ -n "$WS_URL" ] && DEFINES="$DEFINES --dart-define=CREW_LINK_WS_URL=$WS_URL"
           flutter build apk --${{ github.event.inputs.build_mode || 'release' }} \
-            --target "${{ github.event.inputs.target || 'lib/main.dart' }}"
+            --target "${{ github.event.inputs.target || 'lib/main.dart' }}" \
+            $DEFINES
           ls -lh build/app/outputs/flutter-apk/
 
       - name: Upload APK artifact
