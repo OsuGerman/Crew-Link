@@ -32,6 +32,10 @@
 	<string>Damit dich der Konvoi auch bei aktiver Navigation oder Lock-Screen weiter sieht, läuft die Standortübertragung im Hintergrund weiter.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Crew Link nutzt das Mikrofon für Push-to-Talk-Sprachübertragung an die Konvoi-Mitglieder.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Crew Link kann die Kamera für Video im Konvoi nutzen.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Crew Link nutzt das lokale Netzwerk für direkte Sprachverbindungen (Push-to-Talk) im Konvoi.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

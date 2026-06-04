@@ -9,7 +9,9 @@ Thumbs.db
 .env.local
 
 # Vendored Flutter SDK — local Windows dev only; CI uses subosito/flutter-action
-flutter/
+# Leading slash anchors to repo root: ohne ihn matcht "flutter/" case-insensitiv
+# auch app/ios/Flutter/ und schliesst die committen-pflichtigen xcconfig-Templates aus.
+/flutter/
 
 # Lokale Test-Uploads / Screenshots (nicht versionieren)
 .pg-uploads/
