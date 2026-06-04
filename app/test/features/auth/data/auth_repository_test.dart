@@ -26,5 +26,19 @@ class _FakeAuthRepo implements AuthRepository {
       throw UnsupportedError('no native Apple SDK in tests');
 
   @override
+  Future<UserCredential> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) =>
+      throw UnsupportedError('no email auth in tests');
+
+  @override
+  Future<UserCredential> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) =>
+      throw UnsupportedError('no email auth in tests');
+
+  @override
   Future<void> signOut() async {}
 }

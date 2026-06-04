@@ -23,8 +23,6 @@ class _FakePttChannel extends PttChannel {
 
   void emitFrame(Uint8List frame) => _controller.add(frame);
 
-  @override
-  // ignore: must_call_super
   void dispose() => _controller.close();
 }
 

@@ -1,6 +1,5 @@
 import 'package:crew_link/core/observability/crash_reporter.dart';
 import 'package:crew_link/core/observability/observability_bootstrap.dart';
-import 'package:crew_link/features/auth/application/auth_notifier.dart';
 import 'package:crew_link/features/auth/application/auth_providers.dart';
 import 'package:crew_link/features/auth/data/auth_repository.dart';
 import 'package:crew_link/features/auth/presentation/login_screen.dart';

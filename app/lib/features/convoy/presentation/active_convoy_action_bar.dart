@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../push_to_talk/application/ptt_providers.dart';
 import '../../push_to_talk/presentation/ptt_button.dart';
-import '../application/convoy_providers.dart';
 
 /// Bottom-Bar in der ActiveConvoy-View. Drei Slots:
 ///   • Links:  Pillen-Counter "X im Konvoi" (tap → Member-Sheet, später)

@@ -31,7 +31,6 @@ class ConvoyHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final convoy = ref.watch(currentConvoyProvider);
     final driverMode = ref.watch(driverModeProvider);
-    final isLeader = ref.watch(selfIsLeaderProvider);
     final hasRoute = ref.watch(tourProvider).isNotEmpty;
     return Scaffold(
       appBar: AppBar(

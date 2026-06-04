@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../application/convoy_providers.dart';
-import '../data/convoy_api.dart';
 
 class DeepLinkJoinScreen extends ConsumerStatefulWidget {
   const DeepLinkJoinScreen({super.key, required this.inviteCode});

@@ -1,3 +1,5 @@
+import 'dart:ui' show ErrorCallback;
+
 import 'package:crew_link/core/observability/crash_reporter.dart';
 import 'package:crew_link/core/observability/observability_bootstrap.dart';
 import 'package:flutter/foundation.dart';
@@ -7,7 +9,7 @@ void main() {
   group('ObservabilityBootstrap.reportError', () {
     test('delegates to wrapped reporter', () async {
       final recording = _RecordingReporter();
-      final bootstrap = ObservabilityBootstrap(recording);
+      final bootstrap = ObservabilityBootstrap.build(overrideForTesting: recording);
       await bootstrap.reportError(
         StateError('test'),
         StackTrace.current,
@@ -20,7 +22,7 @@ void main() {
 
     test('non-fatal errors are forwarded with fatal=false', () async {
       final recording = _RecordingReporter();
-      final bootstrap = ObservabilityBootstrap(recording);
+      final bootstrap = ObservabilityBootstrap.build(overrideForTesting: recording);
       await bootstrap.reportError(Exception('minor'), StackTrace.current);
       expect(recording.lastFatal, isFalse);
     });
@@ -42,7 +44,7 @@ void main() {
 
     test('wires FlutterError.onError to reporter', () async {
       final recording = _RecordingReporter();
-      ObservabilityBootstrap(recording).install();
+      ObservabilityBootstrap.build(overrideForTesting: recording).install();
 
       FlutterError.onError!(
         FlutterErrorDetails(exception: StateError('flutter-err')),
@@ -57,7 +59,7 @@ void main() {
 
     test('wires PlatformDispatcher.onError to reporter', () async {
       final recording = _RecordingReporter();
-      ObservabilityBootstrap(recording).install();
+      ObservabilityBootstrap.build(overrideForTesting: recording).install();
 
       final handled = PlatformDispatcher.instance.onError!(
         StateError('platform-err'),

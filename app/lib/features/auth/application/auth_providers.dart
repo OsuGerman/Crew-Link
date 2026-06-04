@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/firebase/firebase_providers.dart';
-import 'auth_notifier.dart';
 
 export 'auth_notifier.dart' show authNotifierProvider, AuthState, AuthNotifier;
 

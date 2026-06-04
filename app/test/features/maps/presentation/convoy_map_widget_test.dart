@@ -15,7 +15,12 @@ List<MemberMarker> _makeMarkers(
 ) =>
     [
       for (final e in positions.entries)
-        (memberId: e.key, position: e.value, isSelf: e.key == selfId),
+        (
+          memberId: e.key,
+          position: e.value,
+          isSelf: e.key == selfId,
+          headingDegrees: 0,
+        ),
     ];
 
 Widget _wrap(ProviderContainer container) => UncontrolledProviderScope(

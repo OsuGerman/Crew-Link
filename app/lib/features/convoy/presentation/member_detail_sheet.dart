@@ -24,8 +24,6 @@ class MemberDetailSheet extends ConsumerWidget {
   final ConvoyMember member;
   final Color memberColor;
 
-  static const _compassDirs = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'];
-
   static const _categoryColors = <String, Color>{
     'engine': Color(0xFFE94560),
     'wheels': Color(0xFF4F8DFD),
