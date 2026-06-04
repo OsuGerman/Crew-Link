@@ -38,7 +38,7 @@ void main() {
       observer = GpsProducerLifecycleObserver(producer);
     });
 
-    tearDown(observer.dispose);
+    tearDown(() => observer.dispose());
 
     void sendState(AppLifecycleState s) =>
         observer.didChangeAppLifecycleState(s);

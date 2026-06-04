@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:crew_link/app/crew_link_app.dart';
+import 'package:crew_link/features/convoy/presentation/convoy_home_screen.dart';
 import 'package:crew_link/core/config/api_config.dart';
 import 'package:crew_link/core/models/gps_update.dart';
 import 'package:crew_link/core/realtime/connection_status.dart';
@@ -81,7 +81,11 @@ Widget _app({_FakeSocket? socket}) {
             socket ?? _FakeSocket(convoyId: convoyId),
       ),
     ],
-    child: const CrewLinkApp(),
+    // Render the screen directly (not the full CrewLinkApp): the production
+    // GoRouter gates routes behind async auth/onboarding state that never
+    // settles deterministically in a widget test. ConvoyHomeScreen renders
+    // the lobby synchronously when there is no active convoy.
+    child: const MaterialApp(home: ConvoyHomeScreen()),
   );
 }
 

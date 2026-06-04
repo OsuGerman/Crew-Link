@@ -50,6 +50,7 @@ Future<String?> _openAndSubmit(
       find.byType(TextField, skipOffstage: false),
       enterCode,
     );
+    await tester.pump();
   }
   await tester.tap(find.text('Beitreten'));
   await tester.pumpAndSettle();

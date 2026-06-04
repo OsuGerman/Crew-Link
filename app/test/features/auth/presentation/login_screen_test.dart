@@ -93,7 +93,8 @@ void main() {
       await tester.pumpWidget(_wrap(repo));
 
       await tester.tap(find.byKey(const ValueKey('login-siwa')));
-      await tester.pump();
+      await tester.pump(); // process the async rejection + errorMessage state
+      await tester.pump(); // render the error widget
 
       expect(find.byKey(const ValueKey('login-error')), findsOneWidget);
       expect(

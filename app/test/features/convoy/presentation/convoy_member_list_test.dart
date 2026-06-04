@@ -135,8 +135,8 @@ void main() {
       // ~68 m east, 10 m/s -> 36 km/h
       expect(find.text('68 m'), findsOneWidget);
       expect(find.textContaining('36 km/h'), findsOneWidget);
-      // Self row's distance pill reads 'Du'.
-      expect(find.text('Du'), findsOneWidget);
+      // Self row carries the self marker 'Du' (badge + distance pill).
+      expect(find.text('Du'), findsWidgets);
     });
 
     testWidgets('falls back to memberId when convoy.members has no entry',

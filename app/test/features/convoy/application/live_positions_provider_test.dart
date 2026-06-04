@@ -106,7 +106,7 @@ void main() {
       );
     });
 
-    tearDown(container.dispose);
+    tearDown(() => container.dispose());
 
     test('starts as AsyncLoading before first GPS frame', () {
       final sub = container.listen<AsyncValue<Map<String, GpsUpdate>>>(
