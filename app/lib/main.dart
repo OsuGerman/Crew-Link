@@ -76,26 +76,52 @@ Stream<GpsUpdate> _simulatedLocationStream(String memberId) async* {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  var firebaseReady = false;
   if (!kIsWeb) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    FirebaseMessaging.onBackgroundMessage(_fcmBackgroundHandler);
-    await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    await AnalyticsService.instance.logAppOpen();
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      firebaseReady = true;
+    } catch (error, stack) {
+      // firebase_options.dart enthält Platzhalter ('1:REPLACE:…') bis
+      // `flutterfire configure --project=crew-link` läuft. Ohne diesen Guard
+      // wirft Firebase.initializeApp beim Start → harter Crash auf echten
+      // Geräten. Firebase-abhängige Features (FCM, Analytics, Crashlytics)
+      // bleiben dann deaktiviert, die App startet aber.
+      appLog.e(
+        'Firebase.initializeApp fehlgeschlagen — Firebase-Features '
+        'deaktiviert (flutterfire configure ausführen)',
+        error: error,
+        stackTrace: stack,
+      );
+      // Reporter ist hier evtl. selbst noch nicht verfügbar (Crashlytics
+      // braucht Firebase, Sentry ist noch nicht initialisiert) → gekapselt.
+      try {
+        await ObservabilityBootstrap.build().reportError(error, stack);
+      } catch (_) {/* kein funktionierender Reporter vor dem Start */}
+    }
+    if (firebaseReady) {
+      FirebaseMessaging.onBackgroundMessage(_fcmBackgroundHandler);
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      await AnalyticsService.instance.logAppOpen();
+    }
     await FunnelAnalytics.init();
     // Request location permission early so the GPS producer starts
     // immediately when the user joins their first convoy.
     await LocationPermissionService.requestForConvoy();
   }
 
-  // Always build — uses NullCrashReporter on web, Crashlytics on mobile.
-  // Must be called after Firebase.initializeApp() (already done above for !kIsWeb).
-  ObservabilityBootstrap.build().install();
+  // Crashlytics braucht ein initialisiertes Firebase; auf Web liefert build()
+  // den NullCrashReporter (immer sicher). Bei fehlgeschlagenem Firebase-Init
+  // überspringen, sonst crasht FirebaseCrashlytics.instance hier erneut.
+  if (kIsWeb || firebaseReady) {
+    ObservabilityBootstrap.build().install();
+  }
 
   if (_sentryDsn.isEmpty) {
     appLog.w('[Sentry] SENTRY_DSN not set — crash reporting disabled');

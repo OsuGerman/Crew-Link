@@ -157,6 +157,15 @@ LocationSettings defaultLocationSettingsFactory(Duration interval) {
       accuracy: LocationAccuracy.bestForNavigation,
       intervalDuration: interval,
       distanceFilter: distFilter,
+      // Android 10+ drosselt/stoppt Hintergrund-GPS ohne aktiven
+      // Foreground-Service. Die Notification hält den Standort-Stream am
+      // Leben, solange ein Konvoi aktiv ist (GpsProducer.start() läuft).
+      foregroundNotificationConfig: const ForegroundNotificationConfig(
+        notificationTitle: 'Crew Link – Konvoi aktiv',
+        notificationText: 'Dein Standort wird mit dem Konvoi geteilt.',
+        enableWakeLock: true,
+        setOngoing: true,
+      ),
     );
   }
   if (Platform.isIOS || Platform.isMacOS) {
@@ -164,7 +173,15 @@ LocationSettings defaultLocationSettingsFactory(Duration interval) {
       accuracy: LocationAccuracy.bestForNavigation,
       distanceFilter: distFilter,
       activityType: ActivityType.automotiveNavigation,
-      pauseLocationUpdatesAutomatically: ms >= 4000,
+      // NIE automatisch pausieren: iOS würde sonst im Hintergrund bei
+      // Stillstand (Ampel/Parken) die Standort-Lieferung aussetzen und
+      // Konvoi-Mitglieder verlören die Position. distanceFilter begrenzt
+      // die Updates bereits energieschonend. (Default ist zwar false, wir
+      // setzen es explizit, damit die Safety-Entscheidung sichtbar bleibt.)
+      // ignore: avoid_redundant_argument_values
+      pauseLocationUpdatesAutomatically: false,
+      // Blaue Hintergrund-Status-Leiste — Transparenz + App-Store-Konformität.
+      showBackgroundLocationIndicator: true,
     );
   }
   return LocationSettings(

@@ -85,6 +85,7 @@
 	<array>
 		<string>location</string>
 		<string>audio</string>
+		<string>remote-notification</string>
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

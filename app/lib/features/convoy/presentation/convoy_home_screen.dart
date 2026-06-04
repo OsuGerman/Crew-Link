@@ -1,9 +1,15 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/branding/crew_link_wordmark.dart';
+import '../../../core/location/location_permission_service.dart';
 import '../../../core/models/convoy.dart';
+import '../../../core/observability/app_logger.dart';
+import '../../../core/observability/observability_bootstrap.dart';
 import '../../beta/presentation/beta_feedback_sheet.dart';
 import '../../legal/presentation/privacy_policy_screen.dart';
 import '../../maps/presentation/convoy_map_screen.dart';
@@ -230,8 +236,30 @@ class ConvoyHomeScreen extends ConsumerWidget {
     try {
       final convoy = await action(api, token);
       ref.read(currentConvoyProvider.notifier).state = convoy;
+      // Konvoi läuft jetzt → Hintergrund-Tracking braucht "Always".
+      // Kontextbezogen (nicht beim App-Start) hochstufen; Fehler dürfen den
+      // Beitritt nicht abbrechen, daher unawaited + intern gekapselt.
+      unawaited(_escalateLocationPermission());
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+    }
+  }
+
+  /// Stuft die Standort-Berechtigung auf "Always" hoch, sobald ein Konvoi
+  /// aktiv ist — sonst suspendiert iOS die Lieferung im Hintergrund und
+  /// Android drosselt sie. Best-effort: jeder Fehler wird geloggt, bricht
+  /// aber den Konvoi-Beitritt nicht ab.
+  Future<void> _escalateLocationPermission() async {
+    if (kIsWeb) return;
+    try {
+      await LocationPermissionService.requestAlways();
+    } catch (e, s) {
+      appLog.e('LocationAlwaysEscalation', error: e, stackTrace: s);
+      try {
+        await ObservabilityBootstrap.build().reportError(e, s);
+      } catch (_) {
+        // Reporter evtl. nicht verfügbar (z. B. Test ohne Firebase) — ignorieren.
+      }
     }
   }
 }

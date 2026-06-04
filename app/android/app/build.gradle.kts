@@ -36,11 +36,35 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // Echter Release-Key wird über Umgebungsvariablen eingespielt
+        // (CI-Secret oder lokal). Ohne sie bleibt der Block leer und der
+        // release-Build fällt unten auf den Debug-Key zurück.
+        create("release") {
+            val keystorePath = System.getenv("RELEASE_KEYSTORE_FILE")
+            if (keystorePath != null) {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Play-uploadfähig signieren, sobald RELEASE_KEYSTORE_FILE gesetzt
+            // ist; sonst Debug-Key (nicht Play-fähig) mit deutlicher Warnung.
+            signingConfig = if (System.getenv("RELEASE_KEYSTORE_FILE") != null) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "Release-Build mit Debug-Key signiert — RELEASE_KEYSTORE_FILE " +
+                        "(+ RELEASE_STORE_PASSWORD/RELEASE_KEY_ALIAS/RELEASE_KEY_PASSWORD) " +
+                        "für Play-Upload setzen.",
+                )
+                signingConfigs.getByName("debug")
+            }
             // Crashlytics-Mapping-Upload deaktivieren: scheitert mit den
             // Platzhalter-google-services.json-Credentials (HTTP 400). Fuer
             // dev/debug-signierte APKs nicht benoetigt.
