@@ -19,7 +19,7 @@ import '../domain/convoy_session.dart';
 import '../domain/proximity_warning.dart';
 
 final apiConfigProvider = Provider<ApiConfig>((ref) {
-  return ApiConfig.local();
+  return ApiConfig.fromEnvironment();
 });
 
 final httpClientProvider = Provider<http.Client>((ref) {
