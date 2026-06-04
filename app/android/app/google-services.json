@@ -1,28 +1,44 @@
 {
-  "_comment": "Replace all REPLACE_* values by running: flutterfire configure --project=<your-firebase-project-id>",
   "project_info": {
-    "project_number": "REPLACE_SENDER_ID",
-    "firebase_url": "https://crew-link-default-rtdb.firebaseio.com",
-    "project_id": "crew-link",
-    "storage_bucket": "crew-link.firebasestorage.app"
+    "project_number": "44150442783",
+    "firebase_url": "https://crew-link-3c852-default-rtdb.firebaseio.com",
+    "project_id": "crew-link-3c852",
+    "storage_bucket": "crew-link-3c852.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:REPLACE:android:REPLACE",
+        "mobilesdk_app_id": "1:44150442783:android:60fd4868c08cb4a3b67e2a",
         "android_client_info": {
           "package_name": "com.crewlink.crew_link"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "44150442783-7g6i87320kb454aus5fb3g8kf9dr5p71.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "REPLACE_WITH_ANDROID_API_KEY"
+          "current_key": "AIzaSyCC7LRFpR8Yhj6nY0MLjlAxLZ3mtW-v-8Y"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "44150442783-7g6i87320kb454aus5fb3g8kf9dr5p71.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "44150442783-27q479m4mtvsukbm7758d29abvm02tbq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "de.crewlink.app"
+              }
+            }
+          ]
         }
       }
     }

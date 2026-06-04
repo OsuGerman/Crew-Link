@@ -14,6 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 class _FakeAuthRepo implements AuthRepository {
   bool appleSignInCalled = false;
   Object? appleSignInError;
+  String? signedInEmail;
+  String? signedUpEmail;
 
   @override
   Future<UserCredential> signInWithApple() async {
@@ -26,15 +28,19 @@ class _FakeAuthRepo implements AuthRepository {
   Future<UserCredential> signInWithEmailAndPassword(
     String email,
     String password,
-  ) async =>
-      _FakeCredential();
+  ) async {
+    signedInEmail = email;
+    return _FakeCredential();
+  }
 
   @override
   Future<UserCredential> createUserWithEmailAndPassword(
     String email,
     String password,
-  ) async =>
-      _FakeCredential();
+  ) async {
+    signedUpEmail = email;
+    return _FakeCredential();
+  }
 
   @override
   Future<void> signOut() async {}
@@ -68,7 +74,56 @@ void main() {
     ObservabilityBootstrap.build(overrideForTesting: const NullCrashReporter());
   });
 
-  group('LoginScreen', () {
+  group('LoginScreen — Email/Passwort', () {
+    testWidgets('renders email + password fields and submit button',
+        (tester) async {
+      await tester.pumpWidget(_wrap(_FakeAuthRepo()));
+
+      expect(find.byKey(const ValueKey('login-email')), findsOneWidget);
+      expect(find.byKey(const ValueKey('login-password')), findsOneWidget);
+      expect(find.byKey(const ValueKey('login-submit')), findsOneWidget);
+    });
+
+    testWidgets('submitting calls signInWithEmailAndPassword in sign-in mode',
+        (tester) async {
+      final repo = _FakeAuthRepo();
+      await tester.pumpWidget(_wrap(repo));
+
+      await tester.enterText(
+          find.byKey(const ValueKey('login-email')), 'rider@crew.de');
+      await tester.enterText(
+          find.byKey(const ValueKey('login-password')), 'secret123');
+      await tester.ensureVisible(find.byKey(const ValueKey('login-submit')));
+      await tester.tap(find.byKey(const ValueKey('login-submit')));
+      await tester.pump();
+
+      expect(repo.signedInEmail, 'rider@crew.de');
+      expect(repo.signedUpEmail, isNull);
+    });
+
+    testWidgets('toggling to sign-up then submitting calls createUser...',
+        (tester) async {
+      final repo = _FakeAuthRepo();
+      await tester.pumpWidget(_wrap(repo));
+
+      await tester.ensureVisible(find.byKey(const ValueKey('login-toggle')));
+      await tester.tap(find.byKey(const ValueKey('login-toggle')));
+      await tester.pump();
+
+      await tester.enterText(
+          find.byKey(const ValueKey('login-email')), 'new@crew.de');
+      await tester.enterText(
+          find.byKey(const ValueKey('login-password')), 'secret123');
+      await tester.ensureVisible(find.byKey(const ValueKey('login-submit')));
+      await tester.tap(find.byKey(const ValueKey('login-submit')));
+      await tester.pump();
+
+      expect(repo.signedUpEmail, 'new@crew.de');
+      expect(repo.signedInEmail, isNull);
+    });
+  });
+
+  group('LoginScreen — Apple (Sekundär)', () {
     testWidgets('renders the Sign-in-with-Apple button', (tester) async {
       await tester.pumpWidget(_wrap(_FakeAuthRepo()));
 
@@ -80,6 +135,7 @@ void main() {
       final repo = _FakeAuthRepo();
       await tester.pumpWidget(_wrap(repo));
 
+      await tester.ensureVisible(find.byKey(const ValueKey('login-siwa')));
       await tester.tap(find.byKey(const ValueKey('login-siwa')));
       await tester.pump();
 
@@ -92,13 +148,12 @@ void main() {
         ..appleSignInError = Exception('apple-failed');
       await tester.pumpWidget(_wrap(repo));
 
+      await tester.ensureVisible(find.byKey(const ValueKey('login-siwa')));
       await tester.tap(find.byKey(const ValueKey('login-siwa')));
       await tester.pump(); // process the async rejection + errorMessage state
       await tester.pump(); // render the error widget
 
       expect(find.byKey(const ValueKey('login-error')), findsOneWidget);
-      // login-error IS the Text holding the message, so assert its content
-      // directly (find.descendant would look for a nested Text and find none).
       expect(find.textContaining('apple-failed'), findsOneWidget);
     });
   });
