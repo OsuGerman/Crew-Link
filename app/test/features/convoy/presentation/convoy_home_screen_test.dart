@@ -16,6 +16,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import '../../../support/active_view_test_overrides.dart';
+
 http.Client _client(http.Response Function(http.Request req) handler) {
   return MockClient((req) async => handler(req));
 }
@@ -93,6 +95,7 @@ Widget _app(
         ({required convoyId, required authToken}) =>
             socket ?? FakeConvoySocketClient(convoyId: convoyId),
       ),
+      ...activeViewStubOverrides(),
     ],
     // Render the screen directly (not the full CrewLinkApp): the production
     // GoRouter gates routes behind async auth/onboarding state that never
