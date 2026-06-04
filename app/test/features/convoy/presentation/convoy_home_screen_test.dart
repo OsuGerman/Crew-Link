@@ -175,6 +175,7 @@ void main() {
 
       await tester.enterText(
           find.byType(TextField, skipOffstage: false), 'XYZ789');
+      await tester.pump(); // enable 'Beitreten' (only valid for a 6-char code)
       await tester.tap(find.text('Beitreten'));
       await _settle(tester);
 
@@ -193,6 +194,7 @@ void main() {
       await _settle(tester);
       await tester.enterText(
           find.byType(TextField, skipOffstage: false), 'BADXYZ');
+      await tester.pump(); // enable 'Beitreten' (only valid for a 6-char code)
       await tester.tap(find.text('Beitreten'));
       await _settle(tester);
 
