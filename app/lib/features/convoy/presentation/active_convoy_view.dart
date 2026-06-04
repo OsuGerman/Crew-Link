@@ -53,7 +53,7 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
     ref.watch(pttFrameRoutingProvider(convoy.id));
     ref.watch(pttReceiverProvider(convoy.id));
     ref.watch(pttPlaybackProvider(convoy.id));
-    ref.watch(carPlayPttWiringProvider);
+    ref.watch(carPlayConvoyStateWiringProvider);
     ref.watch(lostConnectionWatcherProvider);
     ref.listen<ConvoySplitEvent?>(activeSplitProvider, (_, event) {
       if (event == null || _splitDialogOpen) return;

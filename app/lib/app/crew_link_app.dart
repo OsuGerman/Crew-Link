@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/carplay/carplay_providers.dart';
 import '../core/routing/app_router.dart';
 import '../core/theme/app_theme.dart';
 
@@ -11,6 +12,9 @@ class CrewLinkApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     SystemChrome.setSystemUIOverlayStyle(AppTheme.systemUiOverlay);
+    // Register the CarPlay PTT handler eagerly, so a button press works even
+    // before the driver has opened a convoy. Inert on web / non-iOS.
+    ref.watch(carPlayPttWiringProvider);
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
       title: 'Crew Link',

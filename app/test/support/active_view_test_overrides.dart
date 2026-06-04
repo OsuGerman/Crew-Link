@@ -32,7 +32,7 @@ List<Override> activeViewStubOverrides() => <Override>[
       breachNotificationWatcherProvider.overrideWith((ref) {}),
       convoySplitWatcherProvider.overrideWith((ref) {}),
       lostConnectionWatcherProvider.overrideWith((ref) {}),
-      carPlayPttWiringProvider.overrideWith((ref) {}),
+      carPlayConvoyStateWiringProvider.overrideWith((ref) {}),
       pttFrameRoutingProvider.overrideWith((ref, convoyId) {}),
       pttPlaybackProvider.overrideWith((ref, convoyId) {}),
       pttReceiverProvider.overrideWith((ref, convoyId) => _NoopPttReceiver()),
