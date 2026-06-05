@@ -76,6 +76,38 @@ describeIfDb('vehicle routes', () => {
     expect(body.color).toBe('Indigoblau');
   });
 
+  it('PUT round-trips the spec sheet (power_kw/drivetrain/displacement/'
+      + 'transmission_type)', async () => {
+    const put = await app.inject({
+      method: 'PUT',
+      url: '/vehicles/me',
+      headers: bearer('alice'),
+      payload: {
+        make: 'Porsche',
+        model: '911 GT3',
+        power_kw: 375,
+        drivetrain: 'RWD',
+        displacement: 3996,
+        transmission_type: 'dct',
+      },
+    });
+    expect(put.statusCode).toBe(200);
+    const created = put.json() as VehicleApiPayload;
+    expect(created.power_kw).toBe(375);
+    expect(created.drivetrain).toBe('RWD');
+    expect(created.displacement).toBe(3996);
+    expect(created.transmission_type).toBe('dct');
+
+    const get = await app.inject({
+      method: 'GET',
+      url: '/vehicles/me',
+      headers: bearer('alice'),
+    });
+    const after = get.json() as VehicleApiPayload;
+    expect(after.power_kw).toBe(375);
+    expect(after.transmission_type).toBe('dct');
+  });
+
   it('PUT replaces an existing vehicle (single-vehicle invariant)',
       async () => {
     await app.inject({

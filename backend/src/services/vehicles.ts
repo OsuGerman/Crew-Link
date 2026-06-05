@@ -16,6 +16,10 @@ export interface VehicleApiPayload {
   model: string;
   year: number | null;
   color: string | null;
+  power_kw: number | null;
+  drivetrain: string | null;
+  displacement: number | null;
+  transmission_type: string | null;
   mods: VehicleModApiPayload[];
 }
 
@@ -30,6 +34,10 @@ export interface SetVehicleInput {
   model: string;
   year?: number;
   color?: string;
+  powerKw?: number;
+  drivetrain?: string;
+  displacement?: number;
+  transmissionType?: string;
   mods?: ModInput[];
 }
 
@@ -52,6 +60,10 @@ export async function setUserVehicle(
         model: input.model,
         year: input.year ?? null,
         color: input.color ?? null,
+        powerKw: input.powerKw ?? null,
+        drivetrain: input.drivetrain ?? null,
+        displacement: input.displacement ?? null,
+        transmissionType: input.transmissionType ?? null,
       })
       .returning();
     if (!created) {
@@ -152,6 +164,10 @@ function toApi(
     model: row.model,
     year: row.year,
     color: row.color,
+    power_kw: row.powerKw,
+    drivetrain: row.drivetrain,
+    displacement: row.displacement,
+    transmission_type: row.transmissionType,
     mods,
   };
 }

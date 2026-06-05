@@ -26,9 +26,11 @@ const HTTP_BAD_REQUEST = 400;
 
 const createBodySchema = z.object({
   name: z.string().min(1).max(NAME_MAX_LEN),
+  // The app sends a Dart double (e.g. 500.0). Accept fractional input and round
+  // before persisting (proximity_threshold_m is INTEGER) — an `.int()` guard
+  // would 400 any non-whole value the client sends.
   proximityWarningMeters: z
     .number()
-    .int()
     .min(PROXIMITY_MIN_M)
     .max(PROXIMITY_MAX_M)
     .default(PROXIMITY_DEFAULT_M),

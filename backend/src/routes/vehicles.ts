@@ -16,6 +16,10 @@ const MOD_CATEGORY_MAX_LEN = 40;
 const MAX_MODS = 30;
 const YEAR_LOWER = 1900;
 const YEAR_UPPER_OFFSET = 2;
+const POWER_KW_MAX = 5000;
+const DRIVETRAIN_MAX_LEN = 8;
+const DISPLACEMENT_MAX = 20000;
+const TRANSMISSION_MAX_LEN = 16;
 const HTTP_BAD_REQUEST = 400;
 const HTTP_NO_CONTENT = 204;
 
@@ -32,6 +36,11 @@ const putBodySchema = z.object({
   model: z.string().min(1).max(NAME_MAX_LEN),
   year: z.number().int().min(YEAR_LOWER).max(yearMax).optional(),
   color: z.string().min(1).max(COLOR_MAX_LEN).optional(),
+  // Optional spec sheet (snake_case keys match the app's wire format).
+  power_kw: z.number().int().min(0).max(POWER_KW_MAX).optional(),
+  drivetrain: z.string().min(1).max(DRIVETRAIN_MAX_LEN).optional(),
+  displacement: z.number().int().min(0).max(DISPLACEMENT_MAX).optional(),
+  transmission_type: z.string().min(1).max(TRANSMISSION_MAX_LEN).optional(),
   mods: z.array(modSchema).max(MAX_MODS).optional(),
 });
 
@@ -58,11 +67,18 @@ export function createVehicleRoutes(
           .code(HTTP_BAD_REQUEST)
           .send({ error: 'invalid body', issues: result.error.issues });
       }
-      const vehicle = await setUserVehicle(
-        options.db.db,
-        req.authUser!.id,
-        result.data,
-      );
+      const v = result.data;
+      const vehicle = await setUserVehicle(options.db.db, req.authUser!.id, {
+        make: v.make,
+        model: v.model,
+        year: v.year,
+        color: v.color,
+        powerKw: v.power_kw,
+        drivetrain: v.drivetrain,
+        displacement: v.displacement,
+        transmissionType: v.transmission_type,
+        mods: v.mods,
+      });
       return reply.send(vehicle);
     });
 

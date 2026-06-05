@@ -1,4 +1,11 @@
-import { pgTable, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  integer,
+  pgTable,
+  smallint,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { users } from './users.js';
 
@@ -11,6 +18,11 @@ export const vehicles = pgTable('vehicles', {
   model: text('model').notNull(),
   year: smallint('year'),
   color: text('color'),
+  // Optional spec sheet — powerKw in kW, displacement in cc.
+  powerKw: integer('power_kw'),
+  drivetrain: text('drivetrain'),
+  displacement: integer('displacement'),
+  transmissionType: text('transmission_type'),
   photoUrl: text('photo_url'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

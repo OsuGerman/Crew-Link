@@ -6,6 +6,7 @@ import {
   convoys,
   users,
   vehicles,
+  type ConvoyStatus,
 } from '../db/schema/index.js';
 import { generateInviteCode } from '../util/invite_code.js';
 import { loadModsByVehicleId, type VehicleApiPayload } from './vehicles.js';
@@ -45,6 +46,8 @@ export interface ConvoyApiPayload {
   inviteCode: string;
   members: ConvoyMemberApiPayload[];
   proximityWarningMeters: number;
+  status: ConvoyStatus;
+  destination: { lat: number; lng: number; label: string | null } | null;
   createdAt: string;
 }
 
@@ -66,7 +69,7 @@ export async function createConvoy(
         ownerUserId: input.ownerUserId,
         name: input.name,
         inviteCode,
-        proximityThresholdM: input.proximityWarningMeters,
+        proximityThresholdM: Math.round(input.proximityWarningMeters),
       })
       .returning();
     if (!convoy) {
@@ -217,6 +220,10 @@ async function loadConvoyPayload(
       vModel: vehicles.model,
       vYear: vehicles.year,
       vColor: vehicles.color,
+      vPowerKw: vehicles.powerKw,
+      vDrivetrain: vehicles.drivetrain,
+      vDisplacement: vehicles.displacement,
+      vTransmissionType: vehicles.transmissionType,
     })
     .from(convoyMembers)
     .innerJoin(users, eq(convoyMembers.userId, users.id))
@@ -239,6 +246,15 @@ async function loadConvoyPayload(
     name: convoy.name,
     inviteCode: convoy.inviteCode,
     proximityWarningMeters: convoy.proximityThresholdM,
+    status: convoy.status,
+    destination:
+      convoy.destinationLat !== null && convoy.destinationLng !== null
+        ? {
+            lat: convoy.destinationLat,
+            lng: convoy.destinationLng,
+            label: convoy.destinationLabel,
+          }
+        : null,
     createdAt: convoy.createdAt.toISOString(),
     members: memberRows.map((m) => ({
       // External member id = Firebase UID (stable, matches the app's
@@ -254,6 +270,10 @@ async function loadConvoyPayload(
               model: m.vModel!,
               year: m.vYear,
               color: m.vColor,
+              power_kw: m.vPowerKw,
+              drivetrain: m.vDrivetrain,
+              displacement: m.vDisplacement,
+              transmission_type: m.vTransmissionType,
               mods: modsByVehicleId.get(m.vId) ?? [],
             }
           : null,
