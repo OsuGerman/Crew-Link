@@ -48,7 +48,6 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
   MapLibreMapController? _mapController;
   late final MapViewport _initialViewport;
   bool _styleLoaded = false;
-  List<MemberMarker> _pending = const [];
 
   @override
   void initState() {
@@ -136,19 +135,15 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     );
 
     if (mounted) setState(() => _styleLoaded = true);
-    if (_pending.isNotEmpty) {
-      await _syncMarkers(_pending);
-    }
+    // Render the CURRENT markers + route immediately: ref.listen only fires on
+    // change, so a stationary self (no GPS delta) would otherwise never appear.
+    await _syncMarkers(ref.read(memberMarkersProvider));
     await _syncRoute(ref.read(tourProvider));
   }
 
   Future<void> _syncMarkers(List<MemberMarker> markers) async {
     final ctrl = _mapController;
-    if (ctrl == null || !_styleLoaded) {
-      _pending = markers;
-      return;
-    }
-    _pending = const [];
+    if (ctrl == null || !_styleLoaded) return;
     await ctrl.setGeoJsonSource(_sourceId, _buildGeoJson(markers));
   }
 

@@ -6,6 +6,8 @@ import '../../../core/carplay/carplay_providers.dart';
 import '../../../core/models/convoy.dart';
 import '../../../core/models/gps_update.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../maps/application/maps_providers.dart';
+import '../../maps/presentation/convoy_map_widget.dart';
 import '../../push_to_talk/application/ptt_providers.dart';
 import '../application/breach_notification_watcher.dart';
 import '../application/convoy_providers.dart';
@@ -81,6 +83,7 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
     final positions = ref.watch(livePositionsProvider);
     final snapshot = positions.valueOrNull ?? const <String, GpsUpdate>{};
     final selfId = ref.watch(selfMemberIdProvider);
+    final showMap = ref.watch(mapViewEnabledProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -91,12 +94,23 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
         const WaypointBanner(),
         const SizedBox(height: AppSpacing.md),
         const HazardBannerStrip(),
-        Expanded(
-          child: ConvoyRadarView(
-            selfMemberId: selfId,
-            positions: snapshot,
-            thresholdMeters: convoy.proximityWarningMeters,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: _MapRadarToggle(
+            showMap: showMap,
+            onChanged: (v) =>
+                ref.read(mapViewEnabledProvider.notifier).state = v,
           ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Expanded(
+          child: showMap
+              ? const ConvoyMapWidget()
+              : ConvoyRadarView(
+                  selfMemberId: selfId,
+                  positions: snapshot,
+                  thresholdMeters: convoy.proximityWarningMeters,
+                ),
         ),
         const SizedBox(height: AppSpacing.md),
         ConvoyMemberList(
@@ -215,6 +229,42 @@ class _ConvoySplitDialog extends StatelessWidget {
           child: const Text('Verstanden'),
         ),
       ],
+    );
+  }
+}
+
+/// Compact map ⇄ radar switch above the main convoy view.
+class _MapRadarToggle extends StatelessWidget {
+  const _MapRadarToggle({required this.showMap, required this.onChanged});
+
+  final bool showMap;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SegmentedButton<bool>(
+        showSelectedIcon: false,
+        style: const ButtonStyle(
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        segments: const [
+          ButtonSegment(
+            value: true,
+            label: Text('Karte'),
+            icon: Icon(Icons.map_outlined, size: 18),
+          ),
+          ButtonSegment(
+            value: false,
+            label: Text('Radar'),
+            icon: Icon(Icons.radar, size: 18),
+          ),
+        ],
+        selected: {showMap},
+        onSelectionChanged: (s) => onChanged(s.first),
+      ),
     );
   }
 }

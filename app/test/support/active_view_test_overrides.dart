@@ -7,6 +7,7 @@ import 'package:crew_link/features/convoy/application/breach_notification_watche
 import 'package:crew_link/features/convoy/application/convoy_providers.dart';
 import 'package:crew_link/features/convoy/application/convoy_split_watcher.dart';
 import 'package:crew_link/features/convoy/application/lost_connection_watcher.dart';
+import 'package:crew_link/features/maps/application/maps_providers.dart';
 import 'package:crew_link/features/push_to_talk/application/ptt_providers.dart';
 import 'package:crew_link/features/push_to_talk/data/webrtc_ptt_receiver.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,4 +44,7 @@ List<Override> activeViewStubOverrides() => <Override>[
       selfLocationStreamProvider.overrideWith(
         (ref) => const Stream<GpsUpdate>.empty(),
       ),
+      // The active view now defaults to the native MapLibre map; force the
+      // radar in widget tests (no platform for MapLibre).
+      mapViewEnabledProvider.overrideWith((ref) => false),
     ];
