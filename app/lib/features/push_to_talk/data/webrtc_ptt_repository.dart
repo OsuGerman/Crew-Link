@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import '../../../core/observability/app_logger.dart';
+import '../../../core/observability/observability_bootstrap.dart';
 import 'ptt_repository.dart';
 
 const _kIceServers = [
@@ -70,6 +73,9 @@ class WebRtcDataChannelPttRepository implements PttRepository {
       final type = data['type'] as String?;
       if (sdp == null || type == null) return;
       await _pc!.setRemoteDescription(RTCSessionDescription(sdp, type));
+    }, onError: (Object e, StackTrace st) {
+      appLog.e('PTT answer RTDB stream', error: e, stackTrace: st);
+      unawaited(ObservabilityBootstrap.build().reportError(e, st));
     });
 
     sigRef.child('answer_ice').onChildAdded.listen((event) async {
@@ -80,6 +86,9 @@ class WebRtcDataChannelPttRepository implements PttRepository {
         ice['sdpMid'] as String?,
         ice['sdpMLineIndex'] as int?,
       ));
+    }, onError: (Object e, StackTrace st) {
+      appLog.e('PTT answer_ice RTDB stream', error: e, stackTrace: st);
+      unawaited(ObservabilityBootstrap.build().reportError(e, st));
     });
   }
 

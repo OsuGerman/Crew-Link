@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:firebase_database/firebase_database.dart';
 
 import '../models/breach_event.dart';
+import '../observability/app_logger.dart';
+import '../observability/observability_bootstrap.dart';
 
 /// Publishes and subscribes to distance-breach events in Firebase RTDB.
 ///
@@ -70,6 +74,10 @@ class RtdbBreachBroadcastRepository implements BreachBroadcastRepository {
             convoyId,
             Map<String, Object?>.from(e.snapshot.value! as Map),
           ),
-        );
+        )
+        .handleError((Object e, StackTrace st) {
+          appLog.e('Breach RTDB stream', error: e, stackTrace: st);
+          unawaited(ObservabilityBootstrap.build().reportError(e, st));
+        });
   }
 }
