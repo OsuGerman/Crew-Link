@@ -17,9 +17,18 @@ Adrian Mirwaldt, adrian.mirwaldt21@gmail.com
 
 ## Was wir NICHT erheben
 
-- Keine Werbung, kein Tracking, keine Analytics-IDs
-- Keine Weitergabe an Dritte
+- Keine Werbung und kein Werbe-Tracking, keine Werbe-Identifier
+- Keine Weitergabe an Dritte zu deren eigenen Zwecken
 - Keine Weitergabe in Drittländer außerhalb des EWR (Firebase-Region: europe-west1)
+
+## Fehlerberichte & Nutzungsanalyse
+
+Zur Stabilität und Verbesserung der App setzen wir ein:
+
+- **Sentry** und **Firebase Crashlytics** — anonymisierte Absturz- und Fehlerberichte (ohne Klarnamen/E-Mail; `sendDefaultPii` ist deaktiviert).
+- **Firebase Analytics** und **PostHog** — pseudonyme Nutzungsstatistiken (welche Funktionen genutzt werden), ohne Werbe-IDs und ohne app-übergreifendes Tracking.
+
+Es werden keine Profile zu Werbezwecken gebildet. Auf Anfrage löschen wir deine zugehörigen Daten (Kontakt unten).
 
 ## Standortdaten – Details
 
