@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:crew_link/core/carplay/carplay_providers.dart';
+import 'package:crew_link/core/models/gps_update.dart';
 import 'package:crew_link/features/convoy/application/breach_notification_watcher.dart';
+import 'package:crew_link/features/convoy/application/convoy_providers.dart';
 import 'package:crew_link/features/convoy/application/convoy_split_watcher.dart';
 import 'package:crew_link/features/convoy/application/lost_connection_watcher.dart';
 import 'package:crew_link/features/push_to_talk/application/ptt_providers.dart';
@@ -36,4 +38,9 @@ List<Override> activeViewStubOverrides() => <Override>[
       pttFrameRoutingProvider.overrideWith((ref, convoyId) {}),
       pttPlaybackProvider.overrideWith((ref, convoyId) {}),
       pttReceiverProvider.overrideWith((ref, convoyId) => _NoopPttReceiver()),
+      // The convoy session now folds in the device's own GPS; stub it so tests
+      // don't reach the geolocator plugin (unavailable in widget tests).
+      selfLocationStreamProvider.overrideWith(
+        (ref) => const Stream<GpsUpdate>.empty(),
+      ),
     ];

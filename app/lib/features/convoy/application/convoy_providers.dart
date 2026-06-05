@@ -97,6 +97,27 @@ final convoySocketProvider =
   return client;
 });
 
+/// Lazily merges two GPS streams into one and cancels both sources when the
+/// listener cancels — folds the device's own position into the convoy session
+/// alongside the WebSocket feed without leaking subscriptions.
+Stream<GpsUpdate> _mergeGps(Stream<GpsUpdate> a, Stream<GpsUpdate> b) {
+  late final StreamController<GpsUpdate> controller;
+  StreamSubscription<GpsUpdate>? subA;
+  StreamSubscription<GpsUpdate>? subB;
+  controller = StreamController<GpsUpdate>(
+    onListen: () {
+      subA = a.listen(controller.add, onError: controller.addError);
+      subB = b.listen(controller.add, onError: controller.addError);
+    },
+    onCancel: () async {
+      await subA?.cancel();
+      await subB?.cancel();
+      await controller.close();
+    },
+  );
+  return controller.stream;
+}
+
 /// Live convoy session derived from the socket client and the local
 /// member id. `null` while in the lobby. Started eagerly so the
 /// proximity warning service begins evaluating as soon as updates flow.
@@ -109,7 +130,13 @@ final convoySessionProvider =
   }
   final session = ConvoySession(
     selfMemberId: ref.watch(selfMemberIdProvider),
-    incoming: socket.gpsUpdates,
+    // Fold the device's own GPS in locally: the backend fan-out never echoes
+    // the sender's own frames, so without this the user never appears on their
+    // own map and proximity has no self-position to measure against.
+    incoming: _mergeGps(
+      socket.gpsUpdates,
+      ref.watch(selfLocationStreamProvider),
+    ),
     thresholdMeters: convoy.proximityWarningMeters,
     clock: ref.watch(clockProvider),
   )..start();
@@ -211,7 +238,9 @@ final gpsProducerProvider = Provider.autoDispose<GpsProducer>((ref) {
 /// Source of device-side GPS updates tagged for the local member.
 /// Backed by [gpsProducerProvider]; overridable in tests for synthetic streams.
 final selfLocationStreamProvider = Provider.autoDispose<Stream<GpsUpdate>>((ref) {
-  return ref.watch(gpsProducerProvider).stream;
+  // Broadcast: consumed by both the publisher (→ WS) and the convoy session
+  // (→ live map + proximity) now that the device's own position is folded in.
+  return ref.watch(gpsProducerProvider).stream.asBroadcastStream();
 });
 
 /// Publishes the local member's GPS updates to the convoy socket while

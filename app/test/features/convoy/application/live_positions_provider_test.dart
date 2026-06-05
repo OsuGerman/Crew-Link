@@ -102,6 +102,11 @@ void main() {
               random: math.Random(0),
             ),
           ),
+          // Session now folds in the device GPS; stub it (the real producer
+          // hits the geolocator/battery plugins, unavailable in a unit test).
+          selfLocationStreamProvider.overrideWith(
+            (ref) => const Stream<GpsUpdate>.empty(),
+          ),
         ],
       );
     });
