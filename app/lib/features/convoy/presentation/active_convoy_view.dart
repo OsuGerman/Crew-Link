@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -48,13 +49,18 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
   @override
   Widget build(BuildContext context) {
     final convoy = widget.convoy;
-    ref.watch(breachNotificationWatcherProvider);
-    ref.watch(convoySplitWatcherProvider);
-    ref.watch(pttFrameRoutingProvider(convoy.id));
-    ref.watch(pttReceiverProvider(convoy.id));
-    ref.watch(pttPlaybackProvider(convoy.id));
-    ref.watch(carPlayConvoyStateWiringProvider);
-    ref.watch(lostConnectionWatcherProvider);
+    // These side-effect providers wire native plugins (CarPlay method channel,
+    // WebRTC/Firebase-Database PTT, FCM notifications) that throw on web. The
+    // web build is for testing the auth/convoy/GPS flow — skip them there.
+    if (!kIsWeb) {
+      ref.watch(breachNotificationWatcherProvider);
+      ref.watch(convoySplitWatcherProvider);
+      ref.watch(pttFrameRoutingProvider(convoy.id));
+      ref.watch(pttReceiverProvider(convoy.id));
+      ref.watch(pttPlaybackProvider(convoy.id));
+      ref.watch(carPlayConvoyStateWiringProvider);
+      ref.watch(lostConnectionWatcherProvider);
+    }
     ref.listen<ConvoySplitEvent?>(activeSplitProvider, (_, event) {
       if (event == null || _splitDialogOpen) return;
       _splitDialogOpen = true;
