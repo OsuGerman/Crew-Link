@@ -31,6 +31,11 @@ import 'route_sheet.dart';
 /// three body views (lobby, active, driver-active). Convoy create/join
 /// API calls live here because they are cross-cutting and shouldn't
 /// drag the lobby widget into the API/provider layer.
+/// True while a convoy create/join API call is in flight — drives the lobby's
+/// loading state so the screen doesn't look frozen during a Render cold start
+/// (the first request after idle can take ~30s).
+final _convoyBusyProvider = StateProvider<bool>((ref) => false);
+
 class ConvoyHomeScreen extends ConsumerWidget {
   const ConvoyHomeScreen({super.key});
 
@@ -39,6 +44,7 @@ class ConvoyHomeScreen extends ConsumerWidget {
     final convoy = ref.watch(currentConvoyProvider);
     final driverMode = ref.watch(driverModeProvider);
     final hasRoute = ref.watch(tourProvider).isNotEmpty;
+    final busy = ref.watch(_convoyBusyProvider);
     return Scaffold(
       appBar: AppBar(
         // Wordmark only in the lobby; in a convoy the name is in the status
@@ -163,15 +169,17 @@ class ConvoyHomeScreen extends ConsumerWidget {
         ],
       ),
       body: convoy == null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: LobbyView(
-                  onCreate: () => _create(context, ref),
-                  onJoin: () => _join(context, ref),
-                ),
-              ),
-            )
+          ? (busy
+              ? const _ConvoyBusyView()
+              : Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: LobbyView(
+                      onCreate: () => _create(context, ref),
+                      onJoin: () => _join(context, ref),
+                    ),
+                  ),
+                ))
           : SafeArea(
               bottom: false,
               child: Padding(
@@ -256,10 +264,11 @@ class ConvoyHomeScreen extends ConsumerWidget {
   }) async {
     final api = ref.read(convoyApiProvider);
     final messenger = ScaffoldMessenger.of(context);
-    // Await the Firebase ID token — reading authTokenProvider synchronously can
-    // return '' while the token future is still resolving (→ empty Bearer → 401).
-    final token = await ref.read(authIdTokenProvider.future) ?? '';
+    ref.read(_convoyBusyProvider.notifier).state = true;
     try {
+      // Await the Firebase ID token — reading authTokenProvider synchronously
+      // can return '' while the token future resolves (→ empty Bearer → 401).
+      final token = await ref.read(authIdTokenProvider.future) ?? '';
       final convoy = await action(api, token);
       ref.read(currentConvoyProvider.notifier).state = convoy;
       // Konvoi läuft jetzt → Hintergrund-Tracking braucht "Always".
@@ -268,6 +277,8 @@ class ConvoyHomeScreen extends ConsumerWidget {
       unawaited(_escalateLocationPermission());
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+    } finally {
+      ref.read(_convoyBusyProvider.notifier).state = false;
     }
   }
 
@@ -287,5 +298,39 @@ class ConvoyHomeScreen extends ConsumerWidget {
         // Reporter evtl. nicht verfügbar (z. B. Test ohne Firebase) — ignorieren.
       }
     }
+  }
+}
+
+/// Loading state shown in the lobby while a create/join request is in flight,
+/// so a slow (cold-start) backend doesn't look like a frozen screen.
+class _ConvoyBusyView extends StatelessWidget {
+  const _ConvoyBusyView();
+
+  @override
+  Widget build(BuildContext context) {
+    final hint = Theme.of(context).textTheme.bodySmall?.color;
+    return Center(
+      key: const ValueKey('convoy-busy'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 20),
+          const Text(
+            'Konvoi wird vorbereitet …',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              'Der erste Start nach einer Pause kann kurz dauern.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: hint),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
