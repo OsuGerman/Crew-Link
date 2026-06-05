@@ -98,7 +98,14 @@ export async function getOrCreateUser(
     })
     .onConflictDoUpdate({
       target: users.appleUserId,
-      set: { updatedAt: new Date() },
+      // Refresh profile from the (verified) token each request so an updated
+      // Firebase displayName — set during onboarding — replaces the initial
+      // email-derived placeholder in the convoy member list.
+      set: {
+        updatedAt: new Date(),
+        displayName: deriveDisplayName(verified),
+        email: verified.email ?? null,
+      },
     })
     .returning();
   if (!user) {
