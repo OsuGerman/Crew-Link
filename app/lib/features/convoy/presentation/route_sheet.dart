@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/geo/geo_distance.dart';
 import '../../../core/models/convoy_member.dart';
 import '../../../core/models/gps_update.dart';
+import '../../../core/observability/app_logger.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../maps/data/geocoding_service.dart';
+import '../../maps/domain/geocode_result.dart';
 import '../application/check_in_providers.dart';
 import '../application/convoy_providers.dart';
 import '../application/waypoint_providers.dart';
@@ -27,31 +32,7 @@ class RouteSheet extends ConsumerStatefulWidget {
 }
 
 class _RouteSheetState extends ConsumerState<RouteSheet> {
-  final _labelCtrl = TextEditingController();
   bool _addingMode = false;
-
-  @override
-  void dispose() {
-    _labelCtrl.dispose();
-    super.dispose();
-  }
-
-  void _appendStop(GpsUpdate selfPos, String selfId) {
-    final label = _labelCtrl.text.trim();
-    ref.read(tourProvider.notifier).addStop(
-          Waypoint(
-            latitude: selfPos.latitude,
-            longitude: selfPos.longitude,
-            label: label.isEmpty
-                ? 'Stopp ${ref.read(tourProvider).length + 1}'
-                : label,
-            setBy: selfId,
-            setAt: DateTime.now().toUtc(),
-          ),
-        );
-    _labelCtrl.clear();
-    setState(() => _addingMode = false);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +64,7 @@ class _RouteSheetState extends ConsumerState<RouteSheet> {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text(
+            const Text(
               'ROUTE',
               style: AppTextStyles.sectionLabel,
               textAlign: TextAlign.center,
@@ -133,15 +114,9 @@ class _RouteSheetState extends ConsumerState<RouteSheet> {
               const SizedBox(height: AppSpacing.lg),
               if (_addingMode)
                 _AddStopInline(
-                  controller: _labelCtrl,
                   selfPos: selfPos,
-                  onSubmit: selfPos == null
-                      ? null
-                      : () => _appendStop(selfPos, selfId),
-                  onCancel: () {
-                    _labelCtrl.clear();
-                    setState(() => _addingMode = false);
-                  },
+                  selfId: selfId,
+                  onClose: () => setState(() => _addingMode = false),
                 )
               else
                 Row(
@@ -256,7 +231,7 @@ class _StopList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadii.card),
@@ -546,40 +521,151 @@ class _BadgePill extends StatelessWidget {
   }
 }
 
-class _AddStopInline extends StatelessWidget {
+/// Address-search add-stop form: type a place → debounced Nominatim search →
+/// tap a result to append it as a route stop. "Aktuelle Position" stays as a
+/// quick fallback when you're already where the stop should be.
+class _AddStopInline extends ConsumerStatefulWidget {
   const _AddStopInline({
-    required this.controller,
     required this.selfPos,
-    required this.onSubmit,
-    required this.onCancel,
+    required this.selfId,
+    required this.onClose,
   });
 
-  final TextEditingController controller;
   final GpsUpdate? selfPos;
-  final VoidCallback? onSubmit;
-  final VoidCallback onCancel;
+  final String selfId;
+  final VoidCallback onClose;
+
+  @override
+  ConsumerState<_AddStopInline> createState() => _AddStopInlineState();
+}
+
+class _AddStopInlineState extends ConsumerState<_AddStopInline> {
+  final _ctrl = TextEditingController();
+  Timer? _debounce;
+  List<GeocodeResult> _results = const [];
+  bool _loading = false;
+  int _reqId = 0;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    if (value.trim().length < GeocodingService.minQueryLength) {
+      setState(() {
+        _results = const [];
+        _loading = false;
+      });
+      return;
+    }
+    setState(() => _loading = true);
+    _debounce = Timer(
+      const Duration(milliseconds: 450),
+      () => _search(value),
+    );
+  }
+
+  Future<void> _search(String query) async {
+    final id = ++_reqId;
+    try {
+      final res = await ref.read(geocodingServiceProvider).search(query);
+      if (!mounted || id != _reqId) return;
+      setState(() {
+        _results = res;
+        _loading = false;
+      });
+    } catch (e, st) {
+      appLog.e('RouteSheet.geocode', error: e, stackTrace: st);
+      if (mounted && id == _reqId) {
+        setState(() {
+          _results = const [];
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  void _addStop(double lat, double lng, String label) {
+    ref.read(tourProvider.notifier).addStop(
+          Waypoint(
+            latitude: lat,
+            longitude: lng,
+            label: label,
+            setBy: widget.selfId,
+            setAt: DateTime.now().toUtc(),
+          ),
+        );
+    widget.onClose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final selfPos = widget.selfPos;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
-          key: const ValueKey('route-add-stop-label'),
-          controller: controller,
+          key: const ValueKey('route-address-search'),
+          controller: _ctrl,
           autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            hintText: 'Beschreibung · z. B. Tankstelle Müller',
-            labelText: 'Stopp-Name',
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            hintText: 'Adresse oder Ort suchen …',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: _loading
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : null,
           ),
+          onChanged: _onChanged,
         ),
+        if (_results.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 220),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadii.card),
+              border: Border.all(color: AppColors.surfaceOutline, width: 0.6),
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              itemCount: _results.length,
+              itemBuilder: (_, i) {
+                final r = _results[i];
+                return ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.place_outlined,
+                      size: 20, color: AppColors.orange),
+                  title: Text(
+                    r.label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  onTap: () => _addStop(r.latitude, r.longitude, r.shortLabel),
+                );
+              },
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
         Row(
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: onCancel,
+                onPressed: widget.onClose,
                 child: const Text('Abbrechen'),
               ),
             ),
@@ -587,14 +673,18 @@ class _AddStopInline extends StatelessWidget {
             Expanded(
               flex: 2,
               child: FilledButton.icon(
-                key: const ValueKey('route-add-stop-submit'),
-                icon: const Icon(Icons.my_location_rounded),
+                key: const ValueKey('route-add-current'),
+                icon: const Icon(Icons.my_location_rounded, size: 18),
                 label: Text(
-                  selfPos == null
-                      ? 'Warte auf GPS …'
-                      : 'Hier hinzufügen',
+                  selfPos == null ? 'Warte auf GPS …' : 'Aktuelle Position',
                 ),
-                onPressed: onSubmit,
+                onPressed: selfPos == null
+                    ? null
+                    : () => _addStop(
+                          selfPos.latitude,
+                          selfPos.longitude,
+                          'Stopp ${ref.read(tourProvider).length + 1}',
+                        ),
               ),
             ),
           ],
