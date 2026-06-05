@@ -1,3 +1,4 @@
+import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import websocketPlugin from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -37,6 +38,10 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
   });
 
   await app.register(sensible);
+  // Allow the Flutter web build (Chrome) to call the API cross-origin. The API
+  // is token-gated (Bearer, no cookies), so reflecting the request origin is
+  // safe; lock down to specific origins here if needed later.
+  await app.register(cors, { origin: true });
   await app.register(websocketPlugin);
   await app.register(healthRoute);
 

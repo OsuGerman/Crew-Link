@@ -19,6 +19,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@fastify/cors": "^11.2.0",
     "@fastify/sensible": "^6.0.3",
     "@fastify/websocket": "^11.2.0",
     "drizzle-orm": "^0.45.2",
