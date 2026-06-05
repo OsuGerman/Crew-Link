@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -121,15 +123,25 @@ class SignInArea extends StatelessWidget {
     required this.signing,
     required this.error,
     required this.onSignIn,
+    required this.onContinue,
     super.key,
   });
 
   final bool signing;
   final String? error;
+
+  /// Apple sign-in — only wired on Apple platforms.
   final VoidCallback onSignIn;
+
+  /// Advance without signing in — used off Apple platforms, where the user has
+  /// already signed in via e-mail and the Apple button doesn't work.
+  final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
+    final showApple = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -149,12 +161,18 @@ class SignInArea extends StatelessWidget {
           height: 54,
           child: signing
               ? const Center(child: CircularProgressIndicator())
-              : SignInWithAppleButton(
-                  key: const ValueKey('onboarding-signin-apple'),
-                  onPressed: onSignIn,
-                  style: SignInWithAppleButtonStyle.white,
-                  borderRadius: BorderRadius.circular(AppRadii.button),
-                ),
+              : showApple
+                  ? SignInWithAppleButton(
+                      key: const ValueKey('onboarding-signin-apple'),
+                      onPressed: onSignIn,
+                      style: SignInWithAppleButtonStyle.white,
+                      borderRadius: BorderRadius.circular(AppRadii.button),
+                    )
+                  : FilledButton(
+                      key: const ValueKey('onboarding-continue'),
+                      onPressed: onContinue,
+                      child: const Text('Weiter'),
+                    ),
         ),
       ],
     );

@@ -4,6 +4,8 @@ import 'package:crew_link/features/onboarding/application/onboarding_profile_not
 import 'package:crew_link/features/onboarding/application/onboarding_state.dart';
 import 'package:crew_link/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart'
+    show debugDefaultTargetPlatformOverride, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,15 +87,26 @@ void main() {
     setUp(() => container = _buildContainer());
     tearDown(() => container.dispose());
 
-    testWidgets('starts on siwa step with Apple Sign-In button', (tester) async {
+    testWidgets('siwa step: continue button by default, Apple on iOS',
+        (tester) async {
       await tester.pumpWidget(_wrap(container));
       await tester.pump();
       // The siwa step wrapper Padding and the nested OnboardingPageView both
-      // carry key 'onboarding-page-siwa' (ancestor + descendant), so the key
-      // legitimately matches more than one widget.
+      // carry key 'onboarding-page-siwa' (ancestor + descendant).
+      expect(find.byKey(const ValueKey('onboarding-page-siwa')), findsWidgets);
+      // Default test platform (android) → continue button, no Apple button.
       expect(
-          find.byKey(const ValueKey('onboarding-page-siwa')), findsWidgets);
-      expect(find.byKey(const ValueKey('onboarding-signin-apple')), findsOneWidget);
+          find.byKey(const ValueKey('onboarding-continue')), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('onboarding-signin-apple')), findsNothing);
+
+      // On Apple platforms the Apple sign-in button renders instead.
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      await tester.pumpWidget(_wrap(container));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('onboarding-signin-apple')),
+          findsOneWidget);
+      debugDefaultTargetPlatformOverride = null;
     });
 
     testWidgets('profile step shows name field and Weiter disabled when empty',

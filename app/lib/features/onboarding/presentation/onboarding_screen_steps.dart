@@ -15,6 +15,7 @@ extension _Steps on _OnboardingScreenState {
               signing: _signing,
               error: _signingError,
               onSignIn: _signInWithApple,
+              onContinue: _advanceToProfile,
             ),
           ),
         ],

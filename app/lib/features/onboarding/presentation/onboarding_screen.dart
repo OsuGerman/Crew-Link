@@ -119,6 +119,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  void _advanceToProfile() {
+    setState(() => _step = 1);
+    unawaited(FunnelAnalytics.pageViewed('profile'));
+  }
+
   void _advanceToCta() {
     setState(() => _step = 2);
     unawaited(FunnelAnalytics.pageViewed('convoy-cta'));
