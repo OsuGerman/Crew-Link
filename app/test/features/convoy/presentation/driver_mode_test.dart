@@ -65,6 +65,7 @@ Widget _app({_FakeSocket? socket}) {
     overrides: [
       httpClientProvider.overrideWithValue(_alwaysOkClient()),
       authTokenProvider.overrideWithValue('test-token'),
+      authIdTokenProvider.overrideWith((ref) => 'test-token'),
       selfMemberIdProvider.overrideWithValue('self'),
       // Firebase is not initialized in widget tests, so authStateProvider
       // would error and the router would redirect to /login. Resolve auth to
