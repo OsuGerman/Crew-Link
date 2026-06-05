@@ -4,8 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../convoy/application/convoy_providers.dart';
+import '../../convoy/application/waypoint_providers.dart';
+import '../../convoy/domain/waypoint.dart';
+import '../../convoy/domain/waypoint_tour.dart';
 import '../application/maps_providers.dart';
 import '../domain/map_viewport.dart';
+import '../domain/route_geojson.dart';
 
 const _selfPinColor = '#1565C0';
 const _otherPinColor = '#2E7D32';
@@ -20,6 +25,17 @@ const _strokeWidth = 2.0;
 const _strokeOpacity = 1.0;
 const _strokeColor = '#FFFFFF';
 const _fitPadding = 80.0;
+
+// Leader-route overlay: a line through the stops + numbered stop pins, added
+// before the member layers so live positions stay drawn on top.
+const _routeSourceId = 'convoy-route';
+const _routeLineLayerId = 'convoy-route-line';
+const _routeStopLayerId = 'convoy-route-stops';
+const _routeStopLabelLayerId = 'convoy-route-stop-labels';
+const _routeColor = '#FF6B35';
+const _routeStopColor = '#9E4A1E';
+const _routeLineWidth = 4.0;
+const _routeStopRadius = 13.0;
 
 class ConvoyMapWidget extends ConsumerStatefulWidget {
   const ConvoyMapWidget({super.key});
@@ -47,6 +63,50 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
   Future<void> _onStyleLoaded() async {
     final MapLibreMapController? ctrl = _mapController;
     if (ctrl == null) return;
+
+    // Route layers first → drawn beneath the live member markers.
+    await ctrl.addGeoJsonSource(
+      _routeSourceId,
+      buildRouteGeoJson(WaypointTour.empty),
+    );
+    await ctrl.addLineLayer(
+      _routeSourceId,
+      _routeLineLayerId,
+      const LineLayerProperties(
+        lineColor: _routeColor,
+        lineWidth: _routeLineWidth,
+        lineOpacity: 0.85,
+        lineCap: 'round',
+        lineJoin: 'round',
+      ),
+    );
+    await ctrl.addCircleLayer(
+      _routeSourceId,
+      _routeStopLayerId,
+      const CircleLayerProperties(
+        circleRadius: _routeStopRadius,
+        circleColor: [
+          'case',
+          ['get', 'isCurrent'],
+          _routeColor,
+          _routeStopColor,
+        ],
+        circleStrokeWidth: _strokeWidth,
+        circleStrokeColor: _strokeColor,
+      ),
+    );
+    await ctrl.addSymbolLayer(
+      _routeSourceId,
+      _routeStopLabelLayerId,
+      const SymbolLayerProperties(
+        textField: ['get', 'label'],
+        textSize: _labelTextSize,
+        textColor: _strokeColor,
+        textAllowOverlap: true,
+        textIgnorePlacement: true,
+        textAnchor: 'center',
+      ),
+    );
 
     await ctrl.addGeoJsonSource(_sourceId, _buildGeoJson([]));
 
@@ -79,6 +139,7 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     if (_pending.isNotEmpty) {
       await _syncMarkers(_pending);
     }
+    await _syncRoute(ref.read(tourProvider));
   }
 
   Future<void> _syncMarkers(List<MemberMarker> markers) async {
@@ -111,6 +172,57 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
         },
     ],
   };
+
+  Future<void> _syncRoute(WaypointTour tour) async {
+    final ctrl = _mapController;
+    if (ctrl == null || !_styleLoaded) return;
+    await ctrl.setGeoJsonSource(_routeSourceId, buildRouteGeoJson(tour));
+  }
+
+  /// Leader-only: tapping the map opens a quick name prompt and appends a stop
+  /// at the tapped coordinate. The tour syncs to every member via the socket.
+  Future<void> _promptAddStop(LatLng latLng) async {
+    final controller = TextEditingController();
+    final selfId = ref.read(selfMemberIdProvider);
+    final defaultLabel = 'Stopp ${ref.read(tourProvider).length + 1}';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Stopp setzen'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            hintText: defaultLabel,
+            labelText: 'Name des Stopps',
+          ),
+          onSubmitted: (_) => Navigator.of(ctx).pop(true),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Setzen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final label = controller.text.trim();
+    ref.read(tourProvider.notifier).addStop(
+          Waypoint(
+            latitude: latLng.latitude,
+            longitude: latLng.longitude,
+            label: label.isEmpty ? defaultLabel : label,
+            setBy: selfId,
+            setAt: DateTime.now().toUtc(),
+          ),
+        );
+  }
 
   Future<void> _fitAll() async {
     final ctrl = _mapController;
@@ -147,13 +259,17 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     }
     final scheme = Theme.of(context).colorScheme;
     ref.listen(memberMarkersProvider, (_, next) => _syncMarkers(next));
+    ref.listen(tourProvider, (_, next) => _syncRoute(next));
     final markers = ref.watch(memberMarkersProvider);
+    final isLeader = ref.watch(selfIsLeaderProvider);
 
     return Stack(
       children: [
         MapLibreMap(
           onMapCreated: _onMapCreated,
           onStyleLoadedCallback: _onStyleLoaded,
+          onMapClick:
+              isLeader ? (_, latLng) => _promptAddStop(latLng) : null,
           initialCameraPosition: CameraPosition(
             target: LatLng(_initialViewport.centerLat, _initialViewport.centerLng),
             zoom: _initialViewport.zoomLevel,
@@ -176,6 +292,31 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
                   Text(
                     _styleLoaded ? 'Warte auf GPS-Daten …' : 'Karte lädt …',
                     style: TextStyle(color: scheme.onSurface, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (isLeader)
+          Positioned(
+            left: 12,
+            top: 12,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: scheme.surface.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.touch_app_rounded,
+                      size: 16, color: scheme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Tippe auf die Karte für einen Stopp',
+                    style: TextStyle(fontSize: 12, color: scheme.onSurface),
                   ),
                 ],
               ),
