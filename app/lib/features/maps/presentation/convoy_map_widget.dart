@@ -6,6 +6,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../convoy/application/convoy_providers.dart';
 import '../../convoy/application/waypoint_providers.dart';
+import '../../convoy/domain/convoy_standings.dart';
 import '../../convoy/domain/waypoint.dart';
 import '../../convoy/domain/waypoint_tour.dart';
 import '../application/maps_providers.dart';
@@ -13,8 +14,6 @@ import '../domain/map_viewport.dart';
 import '../domain/route_geojson.dart';
 
 const _selfPinColor = '#1565C0';
-const _otherPinColor = '#2E7D32';
-const _labelMaxChars = 8;
 const _sourceId = 'convoy-members';
 const _circleLayerId = 'convoy-circles';
 const _labelLayerId = 'convoy-labels';
@@ -36,6 +35,13 @@ const _routeColor = '#FF6B35';
 const _routeStopColor = '#9E4A1E';
 const _routeLineWidth = 4.0;
 const _routeStopRadius = 13.0;
+
+/// Map member-pin colour for a green/yellow/red gap tier.
+String _tierHex(GapTier t) => switch (t) {
+      GapTier.green => '#22C55E',
+      GapTier.yellow => '#FFC53D',
+      GapTier.red => '#E94560',
+    };
 
 class ConvoyMapWidget extends ConsumerStatefulWidget {
   const ConvoyMapWidget({super.key});
@@ -172,10 +178,8 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
             'coordinates': [m.position.longitude, m.position.latitude],
           },
           'properties': {
-            'label': m.memberId.length > _labelMaxChars
-                ? m.memberId.substring(0, _labelMaxChars)
-                : m.memberId,
-            'pinColor': m.isSelf ? _selfPinColor : _otherPinColor,
+            'label': m.ordinal > 0 ? '${m.ordinal}' : '',
+            'pinColor': m.isSelf ? _selfPinColor : _tierHex(m.tier),
           },
         },
     ],

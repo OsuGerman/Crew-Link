@@ -3,6 +3,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../core/models/gps_update.dart';
 import '../../convoy/application/convoy_providers.dart';
+import '../../convoy/domain/convoy_standings.dart';
 import '../domain/map_viewport.dart';
 
 typedef MemberMarker = ({
@@ -10,15 +11,26 @@ typedef MemberMarker = ({
   LatLng position,
   bool isSelf,
   double headingDegrees,
+  int ordinal,
+  GapTier tier,
 });
 
-/// Live list of map markers derived from the active convoy session.
-/// Each entry carries the member id, its current LatLng, heading, and whether
-/// it represents the local user (rendered differently on the map).
+/// Live list of map markers derived from the active convoy session. Each entry
+/// carries the member id, current LatLng, heading, self-flag, plus the member's
+/// convoy ordinal (#1 = leader) and green/yellow/red gap tier for numbered,
+/// colour-coded pins.
 final memberMarkersProvider = Provider.autoDispose<List<MemberMarker>>((ref) {
   final Map<String, GpsUpdate> positions =
       ref.watch(livePositionsProvider).valueOrNull ?? const <String, GpsUpdate>{};
   final selfId = ref.watch(selfMemberIdProvider);
+  final convoy = ref.watch(currentConvoyProvider);
+  final standings = convoy == null
+      ? const <String, MemberStanding>{}
+      : computeConvoyStandings(
+          members: convoy.members,
+          positions: positions,
+          thresholdMeters: convoy.proximityWarningMeters,
+        );
   return [
     for (final entry in positions.entries)
       (
@@ -26,6 +38,8 @@ final memberMarkersProvider = Provider.autoDispose<List<MemberMarker>>((ref) {
         position: LatLng(entry.value.latitude, entry.value.longitude),
         isSelf: entry.key == selfId,
         headingDegrees: entry.value.headingDegrees,
+        ordinal: standings[entry.key]?.ordinal ?? 0,
+        tier: standings[entry.key]?.tier ?? GapTier.green,
       ),
   ];
 });

@@ -1,3 +1,4 @@
+import 'package:crew_link/features/convoy/domain/convoy_standings.dart';
 import 'package:crew_link/features/maps/application/maps_providers.dart';
 import 'package:crew_link/features/maps/domain/map_viewport.dart';
 import 'package:crew_link/features/maps/presentation/convoy_map_widget.dart';
@@ -20,6 +21,8 @@ List<MemberMarker> _makeMarkers(
           position: e.value,
           isSelf: e.key == selfId,
           headingDegrees: 0,
+          ordinal: 0,
+          tier: GapTier.green,
         ),
     ];
 

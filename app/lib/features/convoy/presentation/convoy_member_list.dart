@@ -6,6 +6,7 @@ import '../../../core/models/convoy_member.dart';
 import '../../../core/models/gps_update.dart';
 import '../../../core/models/vehicle_profile.dart';
 import '../../../core/theme/app_theme.dart';
+import '../domain/convoy_standings.dart';
 import 'member_detail_sheet.dart';
 
 /// Live-Mitgliederliste — dunkles Theme, kompakte Rows mit konsistentem
@@ -27,7 +28,7 @@ class ConvoyMemberList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = _entries();
-    return Container(
+    return DecoratedBox(
       key: const ValueKey('live-members-tile'),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -75,6 +76,11 @@ class ConvoyMemberList extends StatelessWidget {
 
   List<_Entry> _entries() {
     final selfPos = positions[selfMemberId];
+    final standings = computeConvoyStandings(
+      members: convoy.members,
+      positions: positions,
+      thresholdMeters: convoy.proximityWarningMeters,
+    );
     final entries = <_Entry>[];
     for (final update in positions.values) {
       final member = _lookupMember(update.memberId);
@@ -86,6 +92,7 @@ class ConvoyMemberList extends StatelessWidget {
               lat2: update.latitude,
               lon2: update.longitude,
             );
+      final standing = standings[update.memberId];
       entries.add(_Entry(
         memberId: update.memberId,
         displayName: member?.displayName ?? update.memberId,
@@ -94,6 +101,8 @@ class ConvoyMemberList extends StatelessWidget {
         update: update,
         distanceMeters: distance,
         vehicle: member?.vehicle,
+        ordinal: standing?.ordinal ?? 0,
+        tier: standing?.tier ?? GapTier.green,
       ));
     }
     entries.sort(_compare);
@@ -126,6 +135,8 @@ class _Entry {
     required this.update,
     required this.distanceMeters,
     required this.vehicle,
+    required this.ordinal,
+    required this.tier,
   });
 
   final String memberId;
@@ -135,6 +146,8 @@ class _Entry {
   final GpsUpdate update;
   final double? distanceMeters;
   final VehicleProfile? vehicle;
+  final int ordinal;
+  final GapTier tier;
 }
 
 class _MemberRow extends StatelessWidget {
@@ -164,6 +177,12 @@ class _MemberRow extends StatelessWidget {
     // Skip index 0 (orange) for non-self to avoid color clash with self.
     return _palette[(hash % (_palette.length - 1)) + 1];
   }
+
+  static Color _tierColor(GapTier t) => switch (t) {
+        GapTier.green => AppColors.success,
+        GapTier.yellow => const Color(0xFFFFC53D),
+        GapTier.red => AppColors.danger,
+      };
 
   String _initials() {
     final source = entry.displayName.trim();
@@ -218,23 +237,58 @@ class _MemberRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Color-Dot + Initial-Avatar
-          Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-              border: Border.all(color: color, width: 1.6),
-            ),
-            child: Text(
-              _initials(),
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
+          // Avatar (member-identity color) + numbered green/yellow/red gap badge
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: color, width: 1.6),
+                  ),
+                  child: Text(
+                    _initials(),
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (entry.ordinal > 0)
+                  Positioned(
+                    right: -3,
+                    bottom: -3,
+                    child: Container(
+                      constraints:
+                          const BoxConstraints(minWidth: 18, minHeight: 18),
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _tierColor(entry.tier),
+                        shape: BoxShape.circle,
+                        border:
+                            Border.all(color: AppColors.surface, width: 1.5),
+                      ),
+                      child: Text(
+                        '${entry.ordinal}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: AppSpacing.md),
