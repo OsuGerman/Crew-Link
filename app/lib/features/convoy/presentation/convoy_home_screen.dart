@@ -10,6 +10,7 @@ import '../../../core/location/location_permission_service.dart';
 import '../../../core/models/convoy.dart';
 import '../../../core/observability/app_logger.dart';
 import '../../../core/observability/observability_bootstrap.dart';
+import '../../auth/application/auth_providers.dart';
 import '../../beta/presentation/beta_feedback_sheet.dart';
 import '../../legal/presentation/privacy_policy_screen.dart';
 import '../../maps/presentation/convoy_map_screen.dart';
@@ -213,8 +214,10 @@ class ConvoyHomeScreen extends ConsumerWidget {
 
   Future<void> _leave(BuildContext context, WidgetRef ref, Convoy convoy) async {
     final api = ref.read(convoyApiProvider);
-    final token = ref.read(authTokenProvider);
     final messenger = ScaffoldMessenger.of(context);
+    // Await the Firebase ID token — reading authTokenProvider synchronously can
+    // return '' while the token future is still resolving (→ empty Bearer → 401).
+    final token = await ref.read(authIdTokenProvider.future) ?? '';
     try {
       await api.leaveConvoy(convoyId: convoy.id, authToken: token);
       ref.read(currentConvoyProvider.notifier).state = null;
@@ -231,8 +234,10 @@ class ConvoyHomeScreen extends ConsumerWidget {
     required Future<Convoy> Function(ConvoyApi api, String token) action,
   }) async {
     final api = ref.read(convoyApiProvider);
-    final token = ref.read(authTokenProvider);
     final messenger = ScaffoldMessenger.of(context);
+    // Await the Firebase ID token — reading authTokenProvider synchronously can
+    // return '' while the token future is still resolving (→ empty Bearer → 401).
+    final token = await ref.read(authIdTokenProvider.future) ?? '';
     try {
       final convoy = await action(api, token);
       ref.read(currentConvoyProvider.notifier).state = convoy;

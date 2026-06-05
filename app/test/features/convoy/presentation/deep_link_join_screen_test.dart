@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:crew_link/features/auth/application/auth_providers.dart';
 import 'package:crew_link/features/convoy/application/convoy_providers.dart';
 import 'package:crew_link/features/convoy/presentation/deep_link_join_screen.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +41,7 @@ Widget _wrap({
     overrides: [
       httpClientProvider.overrideWithValue(client),
       authTokenProvider.overrideWithValue('test-token'),
+      authIdTokenProvider.overrideWith((ref) => 'test-token'),
     ],
     child: MaterialApp.router(routerConfig: router),
   );

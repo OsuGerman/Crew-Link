@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../auth/application/auth_providers.dart';
 import '../application/convoy_providers.dart';
 
 class DeepLinkJoinScreen extends ConsumerStatefulWidget {
@@ -20,7 +21,7 @@ class _DeepLinkJoinScreenState extends ConsumerState<DeepLinkJoinScreen> {
   Future<void> _join() async {
     setState(() => _busy = true);
     final api = ref.read(convoyApiProvider);
-    final token = ref.read(authTokenProvider);
+    final token = await ref.read(authIdTokenProvider.future) ?? '';
     try {
       final convoy = await api.joinConvoy(
         inviteCode: widget.inviteCode,

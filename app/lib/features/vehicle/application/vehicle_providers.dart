@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/vehicle_mod.dart';
 import '../../../core/models/vehicle_profile.dart';
+import '../../auth/application/auth_providers.dart';
 import '../../convoy/application/convoy_providers.dart';
 import '../data/vehicle_api.dart';
 
@@ -23,7 +24,7 @@ class MyVehicleNotifier extends AsyncNotifier<VehicleProfile?> {
   @override
   Future<VehicleProfile?> build() async {
     final api = ref.read(vehicleApiProvider);
-    final token = ref.read(authTokenProvider);
+    final token = await ref.read(authIdTokenProvider.future) ?? '';
     return api.getMyVehicle(authToken: token);
   }
 
@@ -39,7 +40,7 @@ class MyVehicleNotifier extends AsyncNotifier<VehicleProfile?> {
     List<VehicleMod> mods = const <VehicleMod>[],
   }) async {
     final api = ref.read(vehicleApiProvider);
-    final token = ref.read(authTokenProvider);
+    final token = await ref.read(authIdTokenProvider.future) ?? '';
     state = const AsyncValue<VehicleProfile?>.loading();
     final saved = await api.putMyVehicle(
       authToken: token,
@@ -59,7 +60,7 @@ class MyVehicleNotifier extends AsyncNotifier<VehicleProfile?> {
 
   Future<void> clear() async {
     final api = ref.read(vehicleApiProvider);
-    final token = ref.read(authTokenProvider);
+    final token = await ref.read(authIdTokenProvider.future) ?? '';
     state = const AsyncValue<VehicleProfile?>.loading();
     await api.deleteMyVehicle(authToken: token);
     state = const AsyncValue<VehicleProfile?>.data(null);

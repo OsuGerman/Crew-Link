@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crew_link/core/models/vehicle_profile.dart';
+import 'package:crew_link/features/auth/application/auth_providers.dart';
 import 'package:crew_link/features/convoy/application/convoy_providers.dart';
 import 'package:crew_link/features/vehicle/application/vehicle_providers.dart';
 import 'package:crew_link/features/vehicle/presentation/vehicle_profile_screen.dart';
@@ -29,6 +30,7 @@ ProviderContainer _containerWith({
   return ProviderContainer(overrides: [
     httpClientProvider.overrideWithValue(recorder.build()),
     authTokenProvider.overrideWithValue('test-token'),
+    authIdTokenProvider.overrideWith((ref) => 'test-token'),
   ]);
 }
 

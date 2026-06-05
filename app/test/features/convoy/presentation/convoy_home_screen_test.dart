@@ -85,6 +85,7 @@ Widget _app(
     overrides: [
       httpClientProvider.overrideWithValue(client),
       authTokenProvider.overrideWithValue('test-token'),
+      authIdTokenProvider.overrideWith((ref) => 'test-token'),
       selfMemberIdProvider.overrideWithValue('self'),
       devSignedInOverrideProvider.overrideWith((ref) => true),
       clockProvider.overrideWithValue(
