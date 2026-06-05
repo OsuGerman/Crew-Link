@@ -21,6 +21,9 @@ const envSchema = z.object({
   // stable user identity. When unset (local dev / integration tests), the
   // bearer token is treated as the user id directly.
   FIREBASE_PROJECT_ID: z.string().min(1).optional(),
+  // Comma-separated CORS allowlist. Unset → reflect any origin (safe for a
+  // bearer-token API with no cookies; tighten once the web host is fixed).
+  CORS_ORIGIN: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

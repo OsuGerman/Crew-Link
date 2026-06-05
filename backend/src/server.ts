@@ -41,11 +41,42 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
   await app.register(sensible);
   // Allow the Flutter web build (Chrome) to call the API cross-origin. The API
   // is token-gated (Bearer, no cookies), so reflecting the request origin is
-  // safe; lock down to specific origins here if needed later.
-  await app.register(cors, { origin: true });
+  // safe. Set CORS_ORIGIN (comma-separated) to lock down to known hosts.
+  await app.register(cors, {
+    origin: options.env.CORS_ORIGIN
+      ? options.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+      : true,
+  });
   await app.register(websocketPlugin);
   await app.register(healthRoute);
 
+  // Never leak internal errors/stack traces to clients. Typed HTTP errors
+  // (sensible, validation) keep their status + message; anything else becomes a
+  // generic 500 and is logged server-side.
+  app.setErrorHandler((error, request, reply) => {
+    const err = error as Error & { statusCode?: number };
+    const statusCode = err.statusCode ?? 500;
+    if (statusCode >= 500) {
+      request.log.error({ err }, 'unhandled error');
+      return reply.code(statusCode).send({ error: 'internal server error' });
+    }
+    return reply
+      .code(statusCode)
+      .send({ error: err.name, message: err.message });
+  });
+
+  // Refuse to start in production with the insecure dev verifier (which would
+  // accept ANY bearer token as a valid identity). Dev/test may still use it.
+  if (
+    options.verifyToken === undefined &&
+    options.env.FIREBASE_PROJECT_ID === undefined &&
+    options.env.NODE_ENV === 'production'
+  ) {
+    throw new Error(
+      'FIREBASE_PROJECT_ID must be set in production — refusing to start with ' +
+        'the insecure dev token verifier.',
+    );
+  }
   const verifyToken: TokenVerifier =
     options.verifyToken ??
     (options.env.FIREBASE_PROJECT_ID !== undefined
