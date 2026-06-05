@@ -9,6 +9,7 @@ import {
   createConvoyGateway,
   type ConvoyGatewayOptions,
 } from './realtime/convoy_gateway.js';
+import { createDbPositionStore } from './realtime/position_store.js';
 import { createConvoyRoutes } from './routes/convoys.js';
 import { healthRoute } from './routes/health.js';
 import { createPttRoutes } from './routes/ptt.js';
@@ -64,8 +65,16 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
   }
 
   const gatewayOptions: ConvoyGatewayOptions = { ...options.gateway };
-  if (gatewayOptions.resolveMember === undefined && dbHandle !== undefined) {
-    gatewayOptions.resolveMember = createMemberResolver(dbHandle.db, verifyToken);
+  if (dbHandle !== undefined) {
+    if (gatewayOptions.resolveMember === undefined) {
+      gatewayOptions.resolveMember = createMemberResolver(
+        dbHandle.db,
+        verifyToken,
+      );
+    }
+    if (gatewayOptions.positionStore === undefined) {
+      gatewayOptions.positionStore = createDbPositionStore(dbHandle.db);
+    }
   }
   if (options.env.REDIS_URL !== undefined) {
     const { RedisFanout } = await import('./realtime/redis_fanout.js');

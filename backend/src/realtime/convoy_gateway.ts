@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 
 import { InProcessFanout, type FanoutAdapter } from './fanout.js';
+import type { PositionStore } from './position_store.js';
 import { encodeFrame, inboundFrameSchema, originatorOf } from './wire.js';
 
 declare module 'fastify' {
@@ -27,6 +28,9 @@ export interface ConvoyGatewayOptions {
   // Fan-out adapter for broadcasting frames. Defaults to InProcessFanout
   // (single-instance). Pass RedisFanout for multi-instance deployments.
   fanout?: FanoutAdapter;
+  // Persists GPS positions and replays a snapshot to newly-connected sockets so
+  // late joiners aren't staring at an empty radar. Omitted → no persistence.
+  positionStore?: PositionStore;
 }
 
 const defaultResolveMember = async (
@@ -42,6 +46,7 @@ export function createConvoyGateway(
   const resolveMember = options.resolveMember ?? defaultResolveMember;
   const ownFanout = options.fanout === undefined;
   const fanout: FanoutAdapter = options.fanout ?? new InProcessFanout();
+  const positionStore = options.positionStore;
 
   return async (app) => {
     // Only close the fanout if we created it; externally-owned fanouts
@@ -83,8 +88,24 @@ export function createConvoyGateway(
           },
         });
 
+        // Replay every other member's last-known position to the new socket so
+        // its radar is populated immediately, not on the next 1 Hz tick.
+        if (positionStore !== undefined) {
+          void positionStore
+            .loadSnapshot(convoyId, memberId)
+            .then((positions) => {
+              if (socket.readyState !== socket.OPEN) return;
+              for (const payload of positions) {
+                socket.send(encodeFrame({ type: 'gps', payload }));
+              }
+            })
+            .catch((err: unknown) => {
+              app.log.warn({ err, convoyId }, 'position snapshot failed');
+            });
+        }
+
         socket.on('message', (raw: Buffer | ArrayBuffer | Buffer[]) => {
-          handleFrame(raw, memberId, convoyId, fanout, app.log);
+          handleFrame(raw, memberId, convoyId, fanout, positionStore, app.log);
         });
 
         socket.on('close', () => {
@@ -100,6 +121,7 @@ function handleFrame(
   originMemberId: string,
   convoyId: string,
   fanout: FanoutAdapter,
+  positionStore: PositionStore | undefined,
   log: { warn: (obj: unknown, msg?: string) => void },
 ): void {
   const text = bufferToString(raw);
@@ -138,6 +160,15 @@ function handleFrame(
 
   const encoded = encodeFrame(result.data);
   void fanout.publish(convoyId, encoded, originMemberId);
+
+  // Persist GPS so a late joiner / reconnect receives a snapshot on connect.
+  if (positionStore !== undefined && result.data.type === 'gps') {
+    void positionStore
+      .save(convoyId, originMemberId, result.data.payload)
+      .catch((err: unknown) => {
+        log.warn({ err, convoyId }, 'position persist failed');
+      });
+  }
 }
 
 function bufferToString(
