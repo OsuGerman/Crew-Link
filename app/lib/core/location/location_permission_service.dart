@@ -25,14 +25,15 @@ class LocationPermissionService {
         permission == LocationPermission.always;
   }
 
-  /// Upgrades foreground permission to "Always" for background tracking.
-  /// Must only be called after [requestForConvoy] has returned `true`.
-  /// Returns `true` if background access was granted.
+  /// Reports whether background ("Always") location is already granted.
+  ///
+  /// Deliberately does NOT auto-request the upgrade: on Android 11+ requesting
+  /// background access bounces the user to the system settings page, which is
+  /// jarring mid-flow (e.g. right after creating a convoy). The upgrade should
+  /// be driven by an explicit in-app prompt. Foreground ("While in use") access
+  /// from [requestForConvoy] is enough for the live map while the app is open.
   static Future<bool> requestAlways() async {
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.always) return true;
-    if (permission != LocationPermission.whileInUse) return false;
-    permission = await Geolocator.requestPermission();
+    final permission = await Geolocator.checkPermission();
     return permission == LocationPermission.always;
   }
 
