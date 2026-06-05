@@ -74,7 +74,11 @@ Stream<GpsUpdate> _simulatedLocationStream(String memberId) async* {
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // Sentry wraps runApp in its own error-capturing zone (appRunner). Use
+  // Sentry's binding so the bindings initialise in that same zone — otherwise
+  // Flutter asserts "Zone mismatch" in debug (e.g. web), and Sentry can't
+  // reliably capture zone-scoped errors in release.
+  SentryWidgetsFlutterBinding.ensureInitialized();
 
   // Firebase has a real Web config too → initialise on every platform so the
   // Web build (main.dart on Chrome) can use Auth. FCM, Analytics and the
