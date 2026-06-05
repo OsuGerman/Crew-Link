@@ -1,11 +1,11 @@
 {
-    "name": "crew_link",
-    "short_name": "crew_link",
+    "name": "Crew Link",
+    "short_name": "Crew Link",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Crew Link — Live-GPS-Konvoi-Koordination mit Abstandswarnung, Push-to-Talk und CarPlay.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
