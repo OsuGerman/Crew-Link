@@ -48,6 +48,7 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
   MapLibreMapController? _mapController;
   late final MapViewport _initialViewport;
   bool _styleLoaded = false;
+  bool _didFit = false;
 
   @override
   void initState() {
@@ -101,6 +102,9 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
         textField: ['get', 'label'],
         textSize: _labelTextSize,
         textColor: _strokeColor,
+        // OpenFreeMap serves "Noto Sans", not the MapLibre default "Open Sans"
+        // (which 404s the glyph range → labels never render).
+        textFont: ['Noto Sans Regular'],
         textAllowOverlap: true,
         textIgnorePlacement: true,
         textAnchor: 'center',
@@ -128,6 +132,9 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
         textField: ['get', 'label'],
         textSize: _labelTextSize,
         textColor: _strokeColor,
+        // OpenFreeMap serves "Noto Sans", not the MapLibre default "Open Sans"
+        // (which 404s the glyph range → labels never render).
+        textFont: ['Noto Sans Regular'],
         textAllowOverlap: true,
         textIgnorePlacement: true,
         textAnchor: 'center',
@@ -145,6 +152,12 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     final ctrl = _mapController;
     if (ctrl == null || !_styleLoaded) return;
     await ctrl.setGeoJsonSource(_sourceId, _buildGeoJson(markers));
+    // Center on the members the first time positions arrive, so the self pin
+    // (and everyone else) is actually in view instead of off-screen.
+    if (!_didFit && markers.isNotEmpty) {
+      _didFit = true;
+      await _fitAll();
+    }
   }
 
   Map<String, dynamic> _buildGeoJson(List<MemberMarker> markers) => {
@@ -265,6 +278,9 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
           onStyleLoadedCallback: _onStyleLoaded,
           onMapClick:
               isLeader ? (_, latLng) => _promptAddStop(latLng) : null,
+          // Native location puck — the guaranteed blue "you are here" dot,
+          // independent of the GeoJSON member layer.
+          myLocationEnabled: true,
           initialCameraPosition: CameraPosition(
             target: LatLng(_initialViewport.centerLat, _initialViewport.centerLng),
             zoom: _initialViewport.zoomLevel,
