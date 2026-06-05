@@ -16,12 +16,13 @@ Ein ehrlicher Stand — was läuft, woran gerade gearbeitet wird, was noch offen
 
 **Läuft:**
 - Firebase-Auth mit E-Mail/Passwort (Registrieren + Login), Onboarding, Lobby.
-- Backend deployed (Fastify auf Render) mit Konvoi-Lifecycle-REST, Live-GPS-WebSocket-Gateway und echter Firebase-ID-Token-Verifizierung (stabile Nutzer-Identität: die Firebase-UID ist die Member-ID in REST, WebSocket und LiveKit).
+- Backend live auf Render (Fastify) mit Konvoi-Lifecycle-REST, Live-GPS-WebSocket-Gateway und echter Firebase-ID-Token-Verifizierung — end-to-end verifiziert (gültiges Token → `201`, ungültiges → `401`).
+- Konvoi erstellen/beitreten gegen das echte Backend; Nutzer-Identität konsistent: die Firebase-UID ist die Member-ID in REST, WebSocket und LiveKit.
 - Postgres + PostGIS (Supabase) inkl. Schema und Migrationen.
-- CI grün: Flutter analyze + Tests, Android-/iOS-Build, Backend-Tests.
+- CI grün: Flutter analyze + 301 Tests, Android-/iOS-Build, Backend-Tests.
 
 **In Arbeit:**
-- End-to-End-Test auf echten Geräten: Konvoi erstellen/beitreten und Live-GPS zwischen mehreren Teilnehmern.
+- Live-GPS-Feintest auf mehreren echten Geräten (Karte, Abstandswarnung) gegen das deployte Backend.
 
 **Offen:**
 - Push-to-Talk: LiveKit-Server noch nicht angebunden — die Token-Route liefert bis dahin `503`.
@@ -94,10 +95,10 @@ Konventionen im Repo: REST und Realtime liegen in getrennten Layern, GPS-Updates
 | Plattform | Stand |
 |-----------|-------|
 | iOS       | Build grün; Verteilung braucht bezahlten Apple-Account (TestFlight) |
-| Android   | Build grün; Login + Backend angebunden; Play-Listing offen |
+| Android   | Build grün; Login + Konvoi/GPS ans Live-Backend angebunden; Play-Listing offen |
 | CarPlay   | Bridge implementiert; Apple-Approval offen |
 | Web       | Demo-Preview über `main_web_preview.dart` mit Mock-Backend |
-| Backend   | Deployed (Render); Postgres+PostGIS (Supabase); Firebase-Token-Auth |
+| Backend   | Live auf Render; Postgres+PostGIS (Supabase); Firebase-Token-Auth verifiziert |
 
 ## Dev-Sideload ohne bezahlten Apple-Account
 
