@@ -41,7 +41,10 @@ class ConvoyHomeScreen extends ConsumerWidget {
     final hasRoute = ref.watch(tourProvider).isNotEmpty;
     return Scaffold(
       appBar: AppBar(
-        title: const CrewLinkWordmark(fontSize: 19),
+        // Wordmark only in the lobby; in a convoy the name is in the status
+        // header below, so we drop it here to make room for the actions
+        // (otherwise the title gets squished into the top-left corner).
+        title: convoy == null ? const CrewLinkWordmark(fontSize: 19) : null,
         actions: [
           if (convoy != null)
             // Allen sichtbar — Read-Only-Anzeige für Non-Leader.
@@ -110,34 +113,52 @@ class ConvoyHomeScreen extends ConsumerWidget {
               key: const ValueKey('open-vehicle-profile'),
               tooltip: 'Mein Fahrzeug',
               icon: const Icon(Icons.garage_outlined),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const VehicleProfileScreen(),
-                  ),
-                );
-              },
-            ),
-          IconButton(
-            key: const ValueKey('open-beta-feedback'),
-            tooltip: 'Beta-Feedback',
-            icon: const Icon(Icons.feedback_outlined),
-            onPressed: () => BetaFeedbackSheet.show(
-              context,
-              screenContext: 'ConvoyHomeScreen',
-            ),
-          ),
-          IconButton(
-            key: const ValueKey('open-privacy-policy'),
-            tooltip: 'Datenschutz',
-            icon: const Icon(Icons.info_outline),
-            onPressed: () {
-              Navigator.of(context).push(
+              onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => const PrivacyPolicyScreen(),
+                  builder: (_) => const VehicleProfileScreen(),
                 ),
-              );
+              ),
+            ),
+          PopupMenuButton<String>(
+            key: const ValueKey('overflow-menu'),
+            tooltip: 'Mehr',
+            onSelected: (value) {
+              switch (value) {
+                case 'beta':
+                  BetaFeedbackSheet.show(
+                    context,
+                    screenContext: 'ConvoyHomeScreen',
+                  );
+                case 'privacy':
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const PrivacyPolicyScreen(),
+                    ),
+                  );
+              }
             },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'beta',
+                child: Row(
+                  children: [
+                    Icon(Icons.feedback_outlined),
+                    SizedBox(width: 12),
+                    Text('Beta-Feedback'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'privacy',
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline),
+                    SizedBox(width: 12),
+                    Text('Datenschutz'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
