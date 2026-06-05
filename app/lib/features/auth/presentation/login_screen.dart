@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -51,6 +53,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authNotifierProvider);
     final isLoading = authState.isLoading;
     final errorMessage = authState.errorMessage;
+    // "Sign in with Apple" only works on Apple platforms; on Android it throws
+    // (webAuthenticationOptions required). Hide it (and its divider) elsewhere.
+    final showApple = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS);
 
     return Scaffold(
       body: SafeArea(
@@ -140,37 +147,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       : 'Neu hier? Konto erstellen',
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              const Row(
-                children: [
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                    child: Text(
-                      'oder',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
+              if (showApple) ...[
+                const SizedBox(height: AppSpacing.md),
+                const Row(
+                  children: [
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                      child: Text(
+                        'oder',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              SizedBox(
-                height: 54,
-                child: SignInWithAppleButton(
-                  key: const ValueKey('login-siwa'),
-                  onPressed: isLoading
-                      ? () {}
-                      : () => ref
-                          .read(authNotifierProvider.notifier)
-                          .signInWithApple(),
-                  style: SignInWithAppleButtonStyle.white,
-                  borderRadius: BorderRadius.circular(AppRadii.button),
+                    Expanded(child: Divider()),
+                  ],
                 ),
-              ),
+                const SizedBox(height: AppSpacing.md),
+                SizedBox(
+                  height: 54,
+                  child: SignInWithAppleButton(
+                    key: const ValueKey('login-siwa'),
+                    onPressed: isLoading
+                        ? () {}
+                        : () => ref
+                            .read(authNotifierProvider.notifier)
+                            .signInWithApple(),
+                    style: SignInWithAppleButtonStyle.white,
+                    borderRadius: BorderRadius.circular(AppRadii.button),
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.xl),
               const Center(child: DotIndicator(count: 3, current: 0)),
             ],

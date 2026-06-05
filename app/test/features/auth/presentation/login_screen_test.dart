@@ -3,6 +3,8 @@ import 'package:crew_link/core/observability/observability_bootstrap.dart';
 import 'package:crew_link/features/auth/data/auth_repository.dart';
 import 'package:crew_link/features/auth/presentation/login_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart'
+    show debugDefaultTargetPlatformOverride, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -124,14 +126,20 @@ void main() {
   });
 
   group('LoginScreen — Apple (Sekundär)', () {
+    // The Apple button only renders on Apple platforms — pin the platform per
+    // test, reset via addTearDown so the foundation-var invariant check (which
+    // runs before group tearDown) passes.
     testWidgets('renders the Sign-in-with-Apple button', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       await tester.pumpWidget(_wrap(_FakeAuthRepo()));
 
       expect(find.byKey(const ValueKey('login-siwa')), findsOneWidget);
+      debugDefaultTargetPlatformOverride = null;
     });
 
     testWidgets('tapping the Apple button calls signInWithApple',
         (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       final repo = _FakeAuthRepo();
       await tester.pumpWidget(_wrap(repo));
 
@@ -140,10 +148,12 @@ void main() {
       await tester.pump();
 
       expect(repo.appleSignInCalled, isTrue);
+      debugDefaultTargetPlatformOverride = null;
     });
 
     testWidgets('error message appears when Apple sign-in fails',
         (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       final repo = _FakeAuthRepo()
         ..appleSignInError = Exception('apple-failed');
       await tester.pumpWidget(_wrap(repo));
@@ -155,6 +165,7 @@ void main() {
 
       expect(find.byKey(const ValueKey('login-error')), findsOneWidget);
       expect(find.textContaining('apple-failed'), findsOneWidget);
+      debugDefaultTargetPlatformOverride = null;
     });
   });
 }
