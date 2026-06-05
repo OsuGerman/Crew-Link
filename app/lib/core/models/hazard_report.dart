@@ -11,6 +11,7 @@ enum HazardType {
   poorVisibility,
   slipperyRoad,
   policeCheckpoint,
+  sos,
   other;
 
   String get wireValue {
@@ -31,6 +32,8 @@ enum HazardType {
         return 'slippery_road';
       case HazardType.policeCheckpoint:
         return 'police_checkpoint';
+      case HazardType.sos:
+        return 'sos';
       case HazardType.other:
         return 'other';
     }

@@ -38,6 +38,7 @@ export const hazardTypeSchema = z.enum([
   'poor_visibility',
   'slippery_road',
   'police_checkpoint',
+  'sos',
   'other',
 ]);
 
