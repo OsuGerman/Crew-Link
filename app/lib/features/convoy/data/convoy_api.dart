@@ -45,9 +45,11 @@ class ConvoyApi {
     required String convoyId,
     required String authToken,
   }) async {
+    // No request body → must NOT send `Content-Type: application/json`, or
+    // Fastify rejects it with FST_ERR_CTP_EMPTY_JSON_BODY before auth even runs.
     final response = await _client.delete(
       config.restBaseUrl.replace(path: '/convoys/$convoyId/membership'),
-      headers: _authHeaders(authToken),
+      headers: {'Authorization': 'Bearer $authToken'},
     );
     if (response.statusCode >= 400) {
       throw _ConvoyApiException(response.statusCode, response.body);
