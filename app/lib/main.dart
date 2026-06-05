@@ -76,43 +76,41 @@ Stream<GpsUpdate> _simulatedLocationStream(String memberId) async* {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Firebase has a real Web config too → initialise on every platform so the
+  // Web build (main.dart on Chrome) can use Auth. FCM, Analytics and the
+  // location-permission prompt stay native-only below.
   var firebaseReady = false;
-  if (!kIsWeb) {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    firebaseReady = true;
+  } catch (error, stack) {
+    // Guard against placeholder/missing config so a failed init never crashes
+    // the start — Firebase-dependent features just stay disabled.
+    appLog.e(
+      'Firebase.initializeApp fehlgeschlagen — Firebase-Features deaktiviert',
+      error: error,
+      stackTrace: stack,
+    );
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      firebaseReady = true;
-    } catch (error, stack) {
-      // firebase_options.dart enthält Platzhalter ('1:REPLACE:…') bis
-      // `flutterfire configure --project=crew-link` läuft. Ohne diesen Guard
-      // wirft Firebase.initializeApp beim Start → harter Crash auf echten
-      // Geräten. Firebase-abhängige Features (FCM, Analytics, Crashlytics)
-      // bleiben dann deaktiviert, die App startet aber.
-      appLog.e(
-        'Firebase.initializeApp fehlgeschlagen — Firebase-Features '
-        'deaktiviert (flutterfire configure ausführen)',
-        error: error,
-        stackTrace: stack,
-      );
-      // Reporter ist hier evtl. selbst noch nicht verfügbar (Crashlytics
-      // braucht Firebase, Sentry ist noch nicht initialisiert) → gekapselt.
-      try {
-        await ObservabilityBootstrap.build().reportError(error, stack);
-      } catch (_) {/* kein funktionierender Reporter vor dem Start */}
-    }
-    if (firebaseReady) {
-      FirebaseMessaging.onBackgroundMessage(_fcmBackgroundHandler);
-      await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-      await AnalyticsService.instance.logAppOpen();
-    }
+      await ObservabilityBootstrap.build().reportError(error, stack);
+    } catch (_) {/* kein funktionierender Reporter vor dem Start */}
+  }
+
+  if (!kIsWeb && firebaseReady) {
+    FirebaseMessaging.onBackgroundMessage(_fcmBackgroundHandler);
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    await AnalyticsService.instance.logAppOpen();
+  }
+  if (!kIsWeb) {
     await FunnelAnalytics.init();
-    // Request location permission early so the GPS producer starts
-    // immediately when the user joins their first convoy.
+    // Request location permission early so the GPS producer starts immediately
+    // when the user joins their first convoy.
     await LocationPermissionService.requestForConvoy();
   }
 
@@ -155,7 +153,8 @@ Future<void> main() async {
           }),
           if (kIsWeb)
             selfLocationStreamProvider.overrideWith(
-              (_) => _simulatedLocationStream('web-preview-user'),
+              (_) => _simulatedLocationStream('web-preview-user')
+                  .asBroadcastStream(),
             ),
         ],
         child: const CrewLinkApp(),

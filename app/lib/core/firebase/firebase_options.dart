@@ -27,17 +27,17 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // No Web app registered yet — these stay placeholders. The web build uses the
-  // mocked main_web_preview.dart and never calls Firebase.initializeApp, so this
-  // is never read. Register a Web app + re-run flutterfire configure to fill in.
+  // Web app "Crew Link Web" registered in Firebase (crew-link-3c852). Real
+  // config — the web build can initialise Firebase and use Auth.
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_WEB_API_KEY',
-    appId: '1:44150442783:web:REPLACE',
+    apiKey: 'AIzaSyDuO4YrpWG9LClaTbD3bl8cNnweb7js4hA',
+    appId: '1:44150442783:web:37ddf9b01229d7ceb67e2a',
     messagingSenderId: '44150442783',
     projectId: 'crew-link-3c852',
     authDomain: 'crew-link-3c852.firebaseapp.com',
     databaseURL: 'https://crew-link-3c852-default-rtdb.firebaseio.com',
     storageBucket: 'crew-link-3c852.firebasestorage.app',
+    measurementId: 'G-B462H6R7Q3',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
