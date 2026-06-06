@@ -112,6 +112,33 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
+    testWidgets('swipe left on the welcome step advances to profile',
+        (tester) async {
+      await tester.pumpWidget(_wrap(container));
+      await tester.pump();
+
+      await tester.fling(
+          find.text('Willkommen bei Crew Link'), const Offset(-300, 0), 1000);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byKey(const ValueKey('onboarding-profile-name')),
+          findsOneWidget);
+    });
+
+    testWidgets('swipe right on the profile step goes back to welcome',
+        (tester) async {
+      await tester.pumpWidget(_wrap(container, initialStep: 1));
+      await tester.pump();
+
+      await tester.fling(find.byKey(const ValueKey('onboarding-page-profile')),
+          const Offset(300, 0), 1000);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byKey(const ValueKey('onboarding-continue')), findsOneWidget);
+    });
+
     testWidgets('profile step shows name field and Weiter disabled when empty',
         (tester) async {
       await tester.pumpWidget(_wrap(container, initialStep: 1));

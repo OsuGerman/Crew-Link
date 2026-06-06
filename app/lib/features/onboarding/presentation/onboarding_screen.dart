@@ -129,6 +129,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     unawaited(FunnelAnalytics.pageViewed('convoy-cta'));
   }
 
+  /// Swipe-left → next step (where the step allows it); swipe-right → previous.
+  /// Makes the 3-dot indicator navigable, matching the carousel it implies.
+  void _swipeForward() {
+    switch (_step) {
+      case 0:
+        _advanceToProfile();
+      case 1:
+        if (_nameController.text.trim().isNotEmpty) _advanceToCta();
+      // step 2 is the last page — "Loslegen" finishes it deliberately.
+    }
+  }
+
+  void _swipeBack() {
+    if (_step == 0) return;
+    setState(() => _step -= 1);
+    unawaited(FunnelAnalytics.pageViewed(_pageKey(_step)));
+  }
+
   Future<void> _complete() async {
     setState(() => _completing = true);
     try {
@@ -165,15 +183,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
             Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 260),
-                child: KeyedSubtree(
-                  key: ValueKey(_step),
-                  child: switch (_step) {
-                    0 => _buildSiwaStep(),
-                    1 => _buildProfileStep(),
-                    _ => _buildConvoyCtaStep(),
-                  },
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onHorizontalDragEnd: (details) {
+                  final v = details.primaryVelocity ?? 0;
+                  if (v < -200) {
+                    _swipeForward();
+                  } else if (v > 200) {
+                    _swipeBack();
+                  }
+                },
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  child: KeyedSubtree(
+                    key: ValueKey(_step),
+                    child: switch (_step) {
+                      0 => _buildSiwaStep(),
+                      1 => _buildProfileStep(),
+                      _ => _buildConvoyCtaStep(),
+                    },
+                  ),
                 ),
               ),
             ),
