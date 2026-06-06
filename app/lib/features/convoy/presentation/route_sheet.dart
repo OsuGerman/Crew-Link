@@ -604,6 +604,8 @@ class _AddStopInlineState extends ConsumerState<_AddStopInline> {
   Timer? _debounce;
   List<GeocodeResult> _results = const [];
   bool _loading = false;
+  bool _failed = false;
+  bool _searched = false;
   int _reqId = 0;
 
   @override
@@ -619,10 +621,15 @@ class _AddStopInlineState extends ConsumerState<_AddStopInline> {
       setState(() {
         _results = const [];
         _loading = false;
+        _failed = false;
+        _searched = false;
       });
       return;
     }
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
     _debounce = Timer(
       const Duration(milliseconds: 450),
       () => _search(value),
@@ -637,6 +644,8 @@ class _AddStopInlineState extends ConsumerState<_AddStopInline> {
       setState(() {
         _results = res;
         _loading = false;
+        _failed = false;
+        _searched = true;
       });
     } catch (e, st) {
       appLog.e('RouteSheet.geocode', error: e, stackTrace: st);
@@ -644,6 +653,8 @@ class _AddStopInlineState extends ConsumerState<_AddStopInline> {
         setState(() {
           _results = const [];
           _loading = false;
+          _failed = true;
+          _searched = true;
         });
       }
     }
@@ -720,6 +731,16 @@ class _AddStopInlineState extends ConsumerState<_AddStopInline> {
             ),
           ),
         ],
+        if (!_loading && _results.isEmpty && _failed)
+          const _SearchHint(
+            icon: Icons.cloud_off_rounded,
+            text: 'Suche fehlgeschlagen — Internet prüfen und erneut versuchen.',
+          ),
+        if (!_loading && _results.isEmpty && !_failed && _searched)
+          const _SearchHint(
+            icon: Icons.search_off_rounded,
+            text: 'Keine Treffer — anderen Suchbegriff probieren.',
+          ),
         const SizedBox(height: AppSpacing.md),
         Row(
           children: [
@@ -750,6 +771,36 @@ class _AddStopInlineState extends ConsumerState<_AddStopInline> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Small inline hint row under the address search (no results / search error).
+class _SearchHint extends StatelessWidget {
+  const _SearchHint({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.textMuted),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
