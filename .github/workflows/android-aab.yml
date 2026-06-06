@@ -1,0 +1,110 @@
+name: Android AAB (Play)
+
+# Builds a Play-ready Android App Bundle (.aab) of the real app (`lib/main.dart`)
+# and uploads it as an artifact. With the release-keystore secrets set the AAB is
+# signed for Play; without them it falls back to the debug key (NOT Play-
+# uploadable) so the pipeline still verifies. Optionally pushes to the Play
+# "internal" track when a Play service-account secret is configured.
+#
+# Required secrets for a real Play release:
+#   RELEASE_KEYSTORE_BASE64    base64 of your upload keystore (.jks)
+#   RELEASE_STORE_PASSWORD     keystore password
+#   RELEASE_KEY_ALIAS          key alias
+#   RELEASE_KEY_PASSWORD       key password
+# Optional (auto-upload — note: the FIRST upload of a new app must be done
+# manually in the Play Console; automation works for subsequent releases):
+#   PLAY_SERVICE_ACCOUNT_JSON  Play Console service-account JSON (full contents)
+#
+# Manual trigger only (Actions → Run workflow).
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Backend REST URL (https://…) — sets CREW_LINK_API_URL'
+        required: false
+        default: ''
+      ws_url:
+        description: 'Backend WS URL (wss://…) — sets CREW_LINK_WS_URL'
+        required: false
+        default: ''
+      build_number:
+        description: 'Play versionCode (overrides pubspec; must increase per upload)'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    name: Build AAB on Ubuntu
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    env:
+      RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+      RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+      RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+      RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # maplibre_gl 0.26.1 + posthog_flutter kompilieren gegen Java 21.
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Generate code (freezed / json_serializable / riverpod)
+        # .g.dart/.freezed.dart sind gitignored → muessen im CI erzeugt werden.
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Decode release keystore (if provided)
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "RELEASE_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "Release keystore decoded — AAB will be Play-signed."
+          else
+            echo "::warning::No RELEASE_KEYSTORE_BASE64 secret — AAB will be debug-signed (NOT Play-uploadable). Add the keystore secrets for a release build."
+          fi
+
+      - name: Build AAB
+        env:
+          API_URL: ${{ github.event.inputs.api_url }}
+          WS_URL: ${{ github.event.inputs.ws_url }}
+          BUILD_NUMBER: ${{ github.event.inputs.build_number }}
+        run: |
+          DEFINES=""
+          [ -n "$API_URL" ] && DEFINES="$DEFINES --dart-define=CREW_LINK_API_URL=$API_URL"
+          [ -n "$WS_URL" ] && DEFINES="$DEFINES --dart-define=CREW_LINK_WS_URL=$WS_URL"
+          BUILD_NUM_ARG=""
+          [ -n "$BUILD_NUMBER" ] && BUILD_NUM_ARG="--build-number=$BUILD_NUMBER"
+          flutter build appbundle --release --target lib/main.dart $DEFINES $BUILD_NUM_ARG
+          ls -lh build/app/outputs/bundle/release/
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrewLink-AAB-${{ github.run_number }}
+          path: app/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload to Play (internal track, if configured)
+        if: ${{ env.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.crewlink.crew_link
+          releaseFiles: app/build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed

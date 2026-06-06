@@ -121,7 +121,7 @@ Wichtig: Crew Link bindet viele native Frameworks ein (Firebase, WebRTC/LiveKit,
 | Backend-Deploy | Anleitung in [BACKEND_DEPLOY.md](BACKEND_DEPLOY.md): Supabase (Postgres+PostGIS) + Render (Server). Env-Vars: `DATABASE_URL`, `FIREBASE_PROJECT_ID`; optional `REDIS_URL`, `LIVEKIT_*`. |
 | App → Backend | Server-URL via `--dart-define=CREW_LINK_API_URL=…`/`CREW_LINK_WS_URL=…` (der Android-APK-Workflow nimmt `api_url`/`ws_url` als Eingaben). Ohne Define: localhost. |
 | Push-to-Talk | LiveKit (z. B. LiveKit Cloud) anbinden: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`. Noch offen. |
-| Android-Release-Signing | Env-Vars `RELEASE_KEYSTORE_FILE` u. a.; ohne sie Fallback auf Debug-Key (nicht Play-tauglich). |
+| Android-Release-Signing | Für den AAB-Workflow als GitHub-Secrets: `RELEASE_KEYSTORE_BASE64`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` (optional `PLAY_SERVICE_ACCOUNT_JSON` für Auto-Upload). Ohne sie Fallback auf Debug-Key (nicht Play-tauglich). |
 | iOS-Signing | `DEVELOPMENT_TEAM` + Apple-Secrets für TestFlight (siehe [TESTFLIGHT.md](TESTFLIGHT.md)). |
 
 ## Release-Pipeline
@@ -130,6 +130,7 @@ Wichtig: Crew Link bindet viele native Frameworks ein (Firebase, WebRTC/LiveKit,
 |----------|---------|----------|
 | CI | jeder Push | Flutter- und Backend-Tests, iOS-/Android-Builds |
 | Android APK | manuell | installierbare APK als Artifact (mit optionaler Backend-URL) |
+| Android AAB (Play) | manuell | Play-signiertes App Bundle (.aab) als Artifact + optionaler Upload in den Play-Internal-Track |
 | TestFlight | manuell oder wöchentlich | signierte IPA → App Store Connect |
 | AltStore IPA | manuell | unsignierte IPA als Artifact |
 
