@@ -1,0 +1,107 @@
+name: Android AAB Bootstrap (one-off)
+
+# ONE-OFF: generates a fresh upload keystore, builds a Play-signed App Bundle
+# with it, and uploads BOTH (plus the password) as a PRIVATE artifact. Use this
+# for the very first release when you have no keystore yet and no local Java.
+#
+# After the run: download the artifact, then
+#   1. SAVE crewlink-upload.jks + the password somewhere safe (password manager
+#      + a backup) — with Play App Signing the upload key is resettable, but
+#      keep it anyway.
+#   2. Set the GitHub secrets (RELEASE_KEYSTORE_BASE64 / RELEASE_STORE_PASSWORD /
+#      RELEASE_KEY_ALIAS / RELEASE_KEY_PASSWORD) from KEYSTORE-CREDENTIALS.txt so
+#      future builds use the normal "Android AAB (Play)" workflow.
+#   3. Upload crewlink-release.aab to the Play Console.
+#   4. Delete this workflow once the secrets are set (the regular AAB workflow
+#      then signs with the stored key).
+#
+# Manual trigger only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Backend REST URL (https://…)'
+        required: false
+        default: 'https://crew-link.onrender.com'
+      ws_url:
+        description: 'Backend WS URL (wss://…)'
+        required: false
+        default: 'wss://crew-link.onrender.com'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Generate code (freezed / json_serializable / riverpod)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Generate upload keystore
+        run: |
+          PW=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 28)
+          echo "::add-mask::$PW"
+          OUT="$RUNNER_TEMP/out"
+          mkdir -p "$OUT"
+          keytool -genkeypair -v \
+            -keystore "$OUT/crewlink-upload.jks" \
+            -storepass "$PW" -keypass "$PW" \
+            -keyalg RSA -keysize 2048 -validity 10000 -alias crewlink \
+            -dname "CN=Crew Link, O=Crew Link, C=DE"
+          base64 -w0 "$OUT/crewlink-upload.jks" > "$OUT/crewlink-upload.jks.base64.txt"
+          {
+            echo "Crew Link — Upload Keystore — SICHER AUFBEWAHREN, NICHT committen!"
+            echo ""
+            echo "alias:                  crewlink"
+            echo "store + key password:   $PW"
+            echo ""
+            echo "GitHub-Secrets (Repo -> Settings -> Secrets and variables -> Actions):"
+            echo "  RELEASE_KEYSTORE_BASE64 = <Inhalt von crewlink-upload.jks.base64.txt>"
+            echo "  RELEASE_STORE_PASSWORD  = $PW"
+            echo "  RELEASE_KEY_ALIAS       = crewlink"
+            echo "  RELEASE_KEY_PASSWORD    = $PW"
+          } > "$OUT/KEYSTORE-CREDENTIALS.txt"
+          {
+            echo "RELEASE_KEYSTORE_FILE=$OUT/crewlink-upload.jks"
+            echo "RELEASE_STORE_PASSWORD=$PW"
+            echo "RELEASE_KEY_ALIAS=crewlink"
+            echo "RELEASE_KEY_PASSWORD=$PW"
+          } >> "$GITHUB_ENV"
+
+      - name: Build signed AAB
+        env:
+          API_URL: ${{ github.event.inputs.api_url }}
+          WS_URL: ${{ github.event.inputs.ws_url }}
+        run: |
+          DEFINES=""
+          [ -n "$API_URL" ] && DEFINES="$DEFINES --dart-define=CREW_LINK_API_URL=$API_URL"
+          [ -n "$WS_URL" ] && DEFINES="$DEFINES --dart-define=CREW_LINK_WS_URL=$WS_URL"
+          flutter build appbundle --release --target lib/main.dart $DEFINES
+          cp build/app/outputs/bundle/release/app-release.aab \
+            "$RUNNER_TEMP/out/crewlink-release.aab"
+          ls -lh "$RUNNER_TEMP/out"
+
+      - name: Upload bundle + keystore + credentials (PRIVATE artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrewLink-Release-Bundle-${{ github.run_number }}
+          path: ${{ runner.temp }}/out/
+          retention-days: 7
+          if-no-files-found: error
