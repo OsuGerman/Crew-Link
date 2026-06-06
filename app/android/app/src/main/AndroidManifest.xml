@@ -9,6 +9,12 @@
          the foreground service already keeps the position stream alive. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- geolocator's library manifest pulls in ACCESS_BACKGROUND_LOCATION; strip
+         it from the MERGED manifest so Play does not flag a background-location
+         permission we do not use (the foreground service covers convoy sharing).
+         Removing only our own line is not enough — the dependency re-adds it. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
+        tools:node="remove"/>
 
     <!-- Foreground service for continuous GPS broadcast while the app
          is backgrounded but the user is actively in a convoy. -->
