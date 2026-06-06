@@ -23,6 +23,7 @@ import 'active_convoy_view.dart';
 import 'convoy_create_sheet.dart';
 import 'convoy_join_sheet.dart';
 import 'driver_active_view.dart';
+import 'fuel_sheet.dart';
 import 'hazard_quick_sheet.dart';
 import 'lobby_view.dart';
 import 'route_sheet.dart';
@@ -130,6 +131,12 @@ class ConvoyHomeScreen extends ConsumerWidget {
             tooltip: 'Mehr',
             onSelected: (value) {
               switch (value) {
+                case 'fuel':
+                  showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (_) => const FuelSheet(),
+                  );
                 case 'beta':
                   BetaFeedbackSheet.show(
                     context,
@@ -143,8 +150,19 @@ class ConvoyHomeScreen extends ConsumerWidget {
                   );
               }
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
+            itemBuilder: (context) => [
+              if (convoy != null)
+                const PopupMenuItem(
+                  value: 'fuel',
+                  child: Row(
+                    children: [
+                      Icon(Icons.local_gas_station_outlined),
+                      SizedBox(width: 12),
+                      Text('Tankstand'),
+                    ],
+                  ),
+                ),
+              const PopupMenuItem(
                 value: 'beta',
                 child: Row(
                   children: [
@@ -154,7 +172,7 @@ class ConvoyHomeScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'privacy',
                 child: Row(
                   children: [
