@@ -61,4 +61,60 @@ void main() {
       expect((points[2]['properties'] as Map)['label'], '3');
     });
   });
+
+  group('buildRoadRouteLineGeoJson', () {
+    final tour = WaypointTour(stops: [
+      _wp(48.1, 11.5, 'A'),
+      _wp(48.3, 11.7, 'B'),
+    ]);
+    const geometry = <({double lat, double lng})>[
+      (lat: 48.1, lng: 11.5),
+      (lat: 48.18, lng: 11.58),
+      (lat: 48.25, lng: 11.64),
+      (lat: 48.3, lng: 11.7),
+    ];
+
+    test('draws the road polyline as a single LineString in [lng,lat]', () {
+      final geo = buildRoadRouteLineGeoJson(tour, geometry);
+      final features = (geo['features'] as List).cast<Map<String, dynamic>>();
+      final line = features.firstWhere(
+        (f) => (f['geometry'] as Map)['type'] == 'LineString',
+      );
+      expect((line['geometry'] as Map)['coordinates'], [
+        [11.5, 48.1],
+        [11.58, 48.18],
+        [11.64, 48.25],
+        [11.7, 48.3],
+      ]);
+    });
+
+    test('keeps numbered stop pins (first flagged current)', () {
+      final geo = buildRoadRouteLineGeoJson(tour, geometry);
+      final features = (geo['features'] as List).cast<Map<String, dynamic>>();
+      final points = features
+          .where((f) => (f['geometry'] as Map)['type'] == 'Point')
+          .toList();
+      expect(points, hasLength(2));
+      expect((points[0]['properties'] as Map)['label'], '1');
+      expect((points[0]['properties'] as Map)['isCurrent'], isTrue);
+      expect((points[1]['properties'] as Map)['isCurrent'], isFalse);
+    });
+
+    test('omits the line when fewer than two geometry points', () {
+      final geo = buildRoadRouteLineGeoJson(
+        tour,
+        const [(lat: 48.1, lng: 11.5)],
+      );
+      final features = (geo['features'] as List).cast<Map<String, dynamic>>();
+      expect(
+        features.where((f) => (f['geometry'] as Map)['type'] == 'LineString'),
+        isEmpty,
+      );
+      // Stop pins still render.
+      expect(
+        features.where((f) => (f['geometry'] as Map)['type'] == 'Point'),
+        hasLength(2),
+      );
+    });
+  });
 }

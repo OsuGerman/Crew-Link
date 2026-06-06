@@ -8,7 +8,9 @@ import '../../../core/models/convoy_member.dart';
 import '../../../core/models/gps_update.dart';
 import '../../../core/observability/app_logger.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../maps/application/maps_providers.dart';
 import '../../maps/data/geocoding_service.dart';
+import '../../maps/data/road_route_service.dart';
 import '../../maps/domain/geocode_result.dart';
 import '../application/check_in_providers.dart';
 import '../application/convoy_providers.dart';
@@ -42,6 +44,7 @@ class _RouteSheetState extends ConsumerState<RouteSheet> {
     final selfId = ref.watch(selfMemberIdProvider);
     final positions = ref.watch(livePositionsProvider).valueOrNull;
     final selfPos = positions?[selfId];
+    final roadRoute = ref.watch(roadRouteProvider);
 
     return SafeArea(
       child: Padding(
@@ -105,6 +108,7 @@ class _RouteSheetState extends ConsumerState<RouteSheet> {
                 tour: tour,
                 isLeader: isLeader,
                 selfPos: selfPos,
+                roadRoute: roadRoute,
                 onRemove: (i) =>
                     ref.read(tourProvider.notifier).removeAt(i),
               ),
@@ -209,12 +213,14 @@ class _StopList extends StatelessWidget {
     required this.tour,
     required this.isLeader,
     required this.selfPos,
+    required this.roadRoute,
     required this.onRemove,
   });
 
   final WaypointTour tour;
   final bool isLeader;
   final GpsUpdate? selfPos;
+  final RoadRoute? roadRoute;
   final void Function(int index) onRemove;
 
   String _distLabel(Waypoint wp) {
@@ -240,7 +246,15 @@ class _StopList extends StatelessWidget {
             fromLat: p.latitude,
             fromLng: p.longitude,
           );
-    final total = etas.isEmpty ? null : etas.last;
+    // Prefer the OSRM road distance/duration for the total; fall back to the
+    // straight-line sum when no road route is available yet.
+    final road = roadRoute;
+    final StopEta? total = road != null
+        ? roadRouteTotalEta(
+            distanceMeters: road.distanceMeters,
+            durationSeconds: road.durationSeconds,
+          )
+        : (etas.isEmpty ? null : etas.last);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface,

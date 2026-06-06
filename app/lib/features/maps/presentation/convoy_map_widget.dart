@@ -10,6 +10,7 @@ import '../../convoy/domain/convoy_standings.dart';
 import '../../convoy/domain/waypoint.dart';
 import '../../convoy/domain/waypoint_tour.dart';
 import '../application/maps_providers.dart';
+import '../data/road_route_service.dart';
 import '../domain/map_viewport.dart';
 import '../domain/route_geojson.dart';
 
@@ -151,7 +152,7 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     // Render the CURRENT markers + route immediately: ref.listen only fires on
     // change, so a stationary self (no GPS delta) would otherwise never appear.
     await _syncMarkers(ref.read(memberMarkersProvider));
-    await _syncRoute(ref.read(tourProvider));
+    await _syncRoute(ref.read(tourProvider), ref.read(roadRouteProvider));
   }
 
   Future<void> _syncMarkers(List<MemberMarker> markers) async {
@@ -186,10 +187,16 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     ],
   };
 
-  Future<void> _syncRoute(WaypointTour tour) async {
+  /// Draws the road-following line from the OSRM [road] geometry when one is
+  /// available; otherwise falls back to the straight-line overlay. Stop pins +
+  /// labels are identical in both cases.
+  Future<void> _syncRoute(WaypointTour tour, RoadRoute? road) async {
     final ctrl = _mapController;
     if (ctrl == null || !_styleLoaded) return;
-    await ctrl.setGeoJsonSource(_routeSourceId, buildRouteGeoJson(tour));
+    final geoJson = road != null
+        ? buildRoadRouteLineGeoJson(tour, road.geometry)
+        : buildRouteGeoJson(tour);
+    await ctrl.setGeoJsonSource(_routeSourceId, geoJson);
   }
 
   /// Leader-only: tapping the map opens a quick name prompt and appends a stop
@@ -276,7 +283,14 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     }
     final scheme = Theme.of(context).colorScheme;
     ref.listen(memberMarkersProvider, (_, next) => _syncMarkers(next));
-    ref.listen(tourProvider, (_, next) => _syncRoute(next));
+    ref.listen(
+      tourProvider,
+      (_, next) => _syncRoute(next, ref.read(roadRouteProvider)),
+    );
+    ref.listen(
+      roadRouteProvider,
+      (_, next) => _syncRoute(ref.read(tourProvider), next),
+    );
     final markers = ref.watch(memberMarkersProvider);
     final isLeader = ref.watch(selfIsLeaderProvider);
 

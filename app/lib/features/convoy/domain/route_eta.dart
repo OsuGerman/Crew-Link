@@ -43,6 +43,18 @@ List<StopEta> computeRouteEtas({
   return etas;
 }
 
+/// Total-route ETA built from OSRM road [distanceMeters] / [durationSeconds]
+/// (real streets), used in place of the straight-line sum when a road route is
+/// available. Both inputs must be non-negative.
+StopEta roadRouteTotalEta({
+  required double distanceMeters,
+  required double durationSeconds,
+}) =>
+    StopEta(
+      cumulativeKm: distanceMeters / 1000,
+      duration: Duration(seconds: durationSeconds.round()),
+    );
+
 /// "45 min" / "2 h 10 min".
 String formatRouteDuration(Duration d) {
   final h = d.inHours;

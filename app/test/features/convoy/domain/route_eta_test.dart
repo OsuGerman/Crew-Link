@@ -55,6 +55,17 @@ void main() {
     });
   });
 
+  group('roadRouteTotalEta', () {
+    test('converts OSRM metres/seconds into km + Duration', () {
+      final eta = roadRouteTotalEta(
+        distanceMeters: 12450,
+        durationSeconds: 845,
+      );
+      expect(eta.cumulativeKm, closeTo(12.45, 0.001));
+      expect(eta.duration, const Duration(seconds: 845));
+    });
+  });
+
   group('formatRouteDuration', () {
     test('formats minutes-only and hours+minutes', () {
       expect(formatRouteDuration(const Duration(minutes: 45)), '45 min');
