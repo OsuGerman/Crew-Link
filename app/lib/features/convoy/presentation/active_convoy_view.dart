@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/carplay/carplay_providers.dart';
+import '../../../core/location/location_permission_service.dart';
 import '../../../core/models/convoy.dart';
 import '../../../core/models/gps_update.dart';
 import '../../../core/theme/app_theme.dart';
@@ -20,6 +23,7 @@ import 'connection_status_banner.dart';
 import 'convoy_member_list.dart';
 import 'convoy_radar_view.dart';
 import 'convoy_status_header.dart';
+import 'gps_readiness_banner.dart';
 import 'hazard_banner_strip.dart';
 import 'lost_connection_banner.dart';
 import 'quick_actions_row.dart';
@@ -49,6 +53,16 @@ class ActiveConvoyView extends ConsumerStatefulWidget {
 
 class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
   bool _splitDialogOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Entering a convoy: ensure device location is on + permitted so the user
+    // appears on the map immediately (and the rest of the convoy sees them).
+    if (!kIsWeb) {
+      unawaited(LocationPermissionService.ensureReady());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +106,11 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
         ConvoyStatusHeader(convoy: convoy),
         const ConnectionStatusBanner(),
         const LostConnectionBanner(),
+        if (snapshot[selfId] == null)
+          GpsReadinessBanner(
+            onActivate: () =>
+                unawaited(LocationPermissionService.ensureReady()),
+          ),
         _ProximityBanner(warning: warning),
         const WaypointBanner(),
         const SizedBox(height: AppSpacing.md),
