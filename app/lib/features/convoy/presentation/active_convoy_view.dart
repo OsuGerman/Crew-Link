@@ -22,6 +22,7 @@ import 'convoy_radar_view.dart';
 import 'convoy_status_header.dart';
 import 'hazard_banner_strip.dart';
 import 'lost_connection_banner.dart';
+import 'sos_hold_button.dart';
 import 'waypoint_banner.dart';
 
 /// Active-Convoy-View — Design.pdf Frame 5/6.
@@ -117,6 +118,18 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
           convoy: convoy,
           positions: snapshot,
           selfMemberId: selfId,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SosHoldButton(
+          onTriggered: snapshot[selfId] == null
+              ? null
+              : () => broadcastSos(
+                    context,
+                    ref,
+                    convoyId: convoy.id,
+                    selfPos: snapshot[selfId]!,
+                    selfId: selfId,
+                  ),
         ),
         ActiveConvoyActionBar(
           memberCount: convoy.members.length,

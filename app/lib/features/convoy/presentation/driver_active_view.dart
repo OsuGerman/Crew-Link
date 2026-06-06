@@ -10,6 +10,7 @@ import '../application/convoy_providers.dart';
 import '../domain/proximity_warning.dart';
 import 'connection_status_banner.dart';
 import 'convoy_radar_view.dart';
+import 'sos_hold_button.dart';
 import 'waypoint_banner.dart';
 
 /// Driver-Mode (Design.pdf Frame 8 "Glance-only Layout").
@@ -59,6 +60,19 @@ class DriverModeActiveView extends ConsumerWidget {
         const SizedBox(height: AppSpacing.md),
         // PTT in der Mitte — größer als im Standard-Mode für Daumen-am-Lenkrad
         const Center(child: PttButton(size: 96)),
+        const SizedBox(height: AppSpacing.md),
+        SosHoldButton(
+          height: 64,
+          onTriggered: positions[selfMemberId] == null
+              ? null
+              : () => broadcastSos(
+                    context,
+                    ref,
+                    convoyId: convoy.id,
+                    selfPos: positions[selfMemberId]!,
+                    selfId: selfMemberId,
+                  ),
+        ),
         const SizedBox(height: AppSpacing.md),
         SizedBox(
           height: _leaveButtonHeight,
