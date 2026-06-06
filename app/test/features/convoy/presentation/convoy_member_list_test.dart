@@ -33,7 +33,7 @@ Widget _harness(Widget child) => MaterialApp(
 
 void main() {
   group('ConvoyMemberList', () {
-    testWidgets('renders MITGLIEDER header and kein GPS when no positions',
+    testWidgets('renders all roster members (offline) when no positions',
         (tester) async {
       final convoy = _convoy(members: const [
         ConvoyMember(id: 'me', displayName: 'Du', isLeader: true),
@@ -46,7 +46,10 @@ void main() {
         selfMemberId: 'me',
       )));
       expect(find.text('MITGLIEDER'), findsOneWidget);
-      expect(find.text('kein GPS'), findsOneWidget);
+      // Members show even without a GPS fix — a joined colleague is visible.
+      expect(find.text('0 live · 3 gesamt'), findsOneWidget);
+      expect(find.text('Buddy'), findsOneWidget);
+      expect(find.text('kein GPS-Signal'), findsWidgets);
     });
 
     testWidgets('header shows live and total counts when positions present',
@@ -66,7 +69,7 @@ void main() {
         selfMemberId: 'me',
       )));
       // 2 members report GPS, 3 are in the convoy roster.
-      expect(find.text('2 live · 3 total'), findsOneWidget);
+      expect(find.text('2 live · 3 gesamt'), findsOneWidget);
     });
 
     testWidgets('shows self first, peers sorted by distance ascending',

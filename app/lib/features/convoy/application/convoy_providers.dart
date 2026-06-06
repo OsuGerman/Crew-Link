@@ -61,6 +61,35 @@ final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 /// its socket connection from this.
 final currentConvoyProvider = StateProvider<Convoy?>((ref) => null);
 
+/// While a convoy is active, periodically re-fetches its roster over REST so a
+/// member who joins after you appears without waiting for their first GPS frame
+/// (there is no membership push yet). Watched by the active convoy view; the
+/// timer auto-cancels when it unmounts. Updates [currentConvoyProvider] only
+/// when the member set actually changed (avoids needless rebuilds).
+final convoyRosterRefreshProvider = Provider.autoDispose<void>((ref) {
+  final convoyId = ref.watch(currentConvoyProvider.select((c) => c?.id));
+  if (convoyId == null) return;
+  final timer = Timer.periodic(const Duration(seconds: 12), (_) async {
+    try {
+      final fresh = await ref.read(convoyApiProvider).getConvoy(
+            convoyId: convoyId,
+            authToken: ref.read(authTokenProvider),
+          );
+      final current = ref.read(currentConvoyProvider);
+      if (current == null || current.id != convoyId) return;
+      final currentIds = current.members.map((m) => m.id).toSet();
+      final freshIds = fresh.members.map((m) => m.id).toSet();
+      if (currentIds.length != freshIds.length ||
+          !currentIds.containsAll(freshIds)) {
+        ref.read(currentConvoyProvider.notifier).state = fresh;
+      }
+    } catch (_) {
+      // Transient (offline / backend cold start) — retry on the next tick.
+    }
+  });
+  ref.onDispose(timer.cancel);
+});
+
 /// Factory that constructs a real-time socket client for a convoy. Kept
 /// as a factory (not a direct provider) so test/CI can swap the socket
 /// implementation without touching every consumer.

@@ -71,6 +71,7 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
     // WebRTC/Firebase-Database PTT, FCM notifications) that throw on web. The
     // web build is for testing the auth/convoy/GPS flow — skip them there.
     if (!kIsWeb) {
+      ref.watch(convoyRosterRefreshProvider);
       ref.watch(breachNotificationWatcherProvider);
       ref.watch(convoySplitWatcherProvider);
       ref.watch(pttFrameRoutingProvider(convoy.id));

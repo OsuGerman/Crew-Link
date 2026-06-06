@@ -28,6 +28,7 @@ class ConvoyMemberList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = _entries();
+    final onlineCount = entries.where((e) => e.update != null).length;
     return DecoratedBox(
       key: const ValueKey('live-members-tile'),
       decoration: BoxDecoration(
@@ -51,8 +52,8 @@ class ConvoyMemberList extends StatelessWidget {
                 const Spacer(),
                 Text(
                   entries.isEmpty
-                      ? 'kein GPS'
-                      : '${entries.length} live · ${convoy.members.length} total',
+                      ? 'wird geladen …'
+                      : '$onlineCount live · ${entries.length} gesamt',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textMuted,
@@ -81,39 +82,53 @@ class ConvoyMemberList extends StatelessWidget {
       positions: positions,
       thresholdMeters: convoy.proximityWarningMeters,
     );
+    double? distanceTo(GpsUpdate? update, String memberId) =>
+        (selfPos == null || memberId == selfMemberId || update == null)
+            ? null
+            : haversineMeters(
+                lat1: selfPos.latitude,
+                lon1: selfPos.longitude,
+                lat2: update.latitude,
+                lon2: update.longitude,
+              );
     final entries = <_Entry>[];
+    // Every roster member — online (has a GPS fix) or offline (waiting for one),
+    // so a colleague who just joined is visible immediately, not only once
+    // their first position arrives.
+    for (final member in convoy.members) {
+      final update = positions[member.id];
+      final standing = standings[member.id];
+      entries.add(_Entry(
+        memberId: member.id,
+        displayName: member.displayName,
+        isLeader: member.isLeader,
+        isSelf: member.id == selfMemberId,
+        update: update,
+        distanceMeters: distanceTo(update, member.id),
+        vehicle: member.vehicle,
+        ordinal: standing?.ordinal ?? 0,
+        tier: standing?.tier ?? GapTier.green,
+      ));
+    }
+    // GPS from someone not yet in the (possibly stale) roster — show them until
+    // the roster refresh catches up, so they are never invisible.
     for (final update in positions.values) {
-      final member = _lookupMember(update.memberId);
-      final distance = (selfPos == null || update.memberId == selfMemberId)
-          ? null
-          : haversineMeters(
-              lat1: selfPos.latitude,
-              lon1: selfPos.longitude,
-              lat2: update.latitude,
-              lon2: update.longitude,
-            );
+      if (convoy.members.any((m) => m.id == update.memberId)) continue;
       final standing = standings[update.memberId];
       entries.add(_Entry(
         memberId: update.memberId,
-        displayName: member?.displayName ?? update.memberId,
-        isLeader: member?.isLeader ?? false,
+        displayName: update.memberId,
+        isLeader: false,
         isSelf: update.memberId == selfMemberId,
         update: update,
-        distanceMeters: distance,
-        vehicle: member?.vehicle,
+        distanceMeters: distanceTo(update, update.memberId),
+        vehicle: null,
         ordinal: standing?.ordinal ?? 0,
         tier: standing?.tier ?? GapTier.green,
       ));
     }
     entries.sort(_compare);
     return entries;
-  }
-
-  ConvoyMember? _lookupMember(String memberId) {
-    for (final m in convoy.members) {
-      if (m.id == memberId) return m;
-    }
-    return null;
   }
 
   static int _compare(_Entry a, _Entry b) {
@@ -143,7 +158,7 @@ class _Entry {
   final String displayName;
   final bool isLeader;
   final bool isSelf;
-  final GpsUpdate update;
+  final GpsUpdate? update;
   final double? distanceMeters;
   final VehicleProfile? vehicle;
   final int ordinal;
@@ -211,7 +226,8 @@ class _MemberRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _memberColor();
-    final speedKmh = entry.update.speedMps * _msToKmhFactor;
+    final online = entry.update != null;
+    final speedKmh = (entry.update?.speedMps ?? 0) * _msToKmhFactor;
     final vehicleLabel = _vehicleLabel();
     return Material(
       key: ValueKey('member-row-${entry.memberId}'),
@@ -319,9 +335,11 @@ class _MemberRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  vehicleLabel == null
-                      ? '${speedKmh.toStringAsFixed(0)} km/h'
-                      : '$vehicleLabel · ${speedKmh.toStringAsFixed(0)} km/h',
+                  !online
+                      ? 'kein GPS-Signal'
+                      : vehicleLabel == null
+                          ? '${speedKmh.toStringAsFixed(0)} km/h'
+                          : '$vehicleLabel · ${speedKmh.toStringAsFixed(0)} km/h',
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textSecondary,

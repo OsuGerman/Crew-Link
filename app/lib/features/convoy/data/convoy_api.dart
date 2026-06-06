@@ -41,6 +41,19 @@ class ConvoyApi {
     return _parseConvoy(response);
   }
 
+  /// Re-fetches the convoy (roster refresh) so members who joined after you
+  /// appear without waiting for their first GPS frame.
+  Future<Convoy> getConvoy({
+    required String convoyId,
+    required String authToken,
+  }) async {
+    final response = await _client.get(
+      config.restBaseUrl.replace(path: '/convoys/$convoyId'),
+      headers: {'Authorization': 'Bearer $authToken'},
+    );
+    return _parseConvoy(response);
+  }
+
   Future<void> leaveConvoy({
     required String convoyId,
     required String authToken,
