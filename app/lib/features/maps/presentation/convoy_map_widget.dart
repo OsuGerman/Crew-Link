@@ -54,7 +54,7 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
   MapLibreMapController? _mapController;
   late final MapViewport _initialViewport;
   bool _styleLoaded = false;
-  bool _didFit = false;
+  int _fittedCount = 0;
 
   @override
   void initState() {
@@ -158,10 +158,11 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     final ctrl = _mapController;
     if (ctrl == null || !_styleLoaded) return;
     await ctrl.setGeoJsonSource(_sourceId, _buildGeoJson(markers));
-    // Center on the members the first time positions arrive, so the self pin
-    // (and everyone else) is actually in view instead of off-screen.
-    if (!_didFit && markers.isNotEmpty) {
-      _didFit = true;
+    // (Re-)fit whenever a NEW member appears, so the self pin shows at a usable
+    // zoom the first time and a colleague who just came online is brought into
+    // view instead of being left off-screen.
+    if (markers.isNotEmpty && markers.length > _fittedCount) {
+      _fittedCount = markers.length;
       await _fitAll();
     }
   }
@@ -244,7 +245,11 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
 
     if (markers.length == 1) {
       final pos = markers.first.position;
-      await ctrl.animateCamera(CameraUpdate.newLatLng(LatLng(pos.latitude, pos.longitude)));
+      // Zoom to a street-level view, not just recenter — otherwise a lone self
+      // pin keeps the far-out initial zoom and the map looks "way too small".
+      await ctrl.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(pos.latitude, pos.longitude), 15.5),
+      );
       return;
     }
 
