@@ -13,6 +13,7 @@ import '../../maps/domain/geocode_result.dart';
 import '../application/check_in_providers.dart';
 import '../application/convoy_providers.dart';
 import '../application/waypoint_providers.dart';
+import '../domain/route_eta.dart';
 import '../domain/waypoint.dart';
 import '../domain/waypoint_check_in.dart';
 import '../domain/waypoint_tour.dart';
@@ -231,6 +232,15 @@ class _StopList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = selfPos;
+    final etas = p == null
+        ? const <StopEta>[]
+        : computeRouteEtas(
+            tour: tour,
+            fromLat: p.latitude,
+            fromLng: p.longitude,
+          );
+    final total = etas.isEmpty ? null : etas.last;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -239,6 +249,7 @@ class _StopList extends StatelessWidget {
       ),
       child: Column(
         children: [
+          if (total != null) _RouteSummaryRow(total: total),
           for (var i = 0; i < tour.stops.length; i++)
             _StopRow(
               index: i,
@@ -248,6 +259,55 @@ class _StopList extends StatelessWidget {
               distanceLabel: i == 0 ? _distLabel(tour.stops[i]) : null,
               onRemove: isLeader ? () => onRemove(i) : null,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Total-route summary at the top of the stop list: straight-line distance +
+/// rough ETA at an assumed convoy average speed.
+class _RouteSummaryRow extends StatelessWidget {
+  const _RouteSummaryRow({required this.total});
+
+  final StopEta total;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('route-summary'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm + 2,
+      ),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppColors.surfaceOutline, width: 0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.route_rounded, color: AppColors.orange, size: 18),
+          const SizedBox(width: AppSpacing.sm),
+          const Text(
+            'Route gesamt',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '${total.cumulativeKm.round()} km · ≈ ${formatRouteDuration(total.duration)}',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
         ],
       ),
     );
