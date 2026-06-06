@@ -192,4 +192,48 @@ describe('convoy gateway', () => {
     wsA.close();
     wsB.close();
   });
+
+  it('drops a hazard_remove from a member who is not the reporter', async () => {
+    const convoy = 'convoy-hazremove';
+    const wsA = await openSocket(url(MEMBER_A, convoy));
+    const wsB = await openSocket(url(MEMBER_B, convoy));
+
+    // A reports a hazard; B receives the broadcast.
+    const inboundB = nextMessage(wsB);
+    wsA.send(
+      JSON.stringify({
+        type: 'hazard',
+        payload: {
+          id: 'hzX',
+          type: 'accident',
+          latitude: 52.5,
+          longitude: 13.4,
+          reporterId: MEMBER_A,
+          createdAt: new Date().toISOString(),
+        },
+      } satisfies InboundFrame),
+    );
+    await inboundB;
+
+    // B (not the reporter) tries to remove A's hazard → must be dropped, so A
+    // never sees the removal.
+    let removalSeen = false;
+    wsA.addEventListener('message', (event) => {
+      if ((JSON.parse(String(event.data)) as InboundFrame).type ===
+          'hazard_remove') {
+        removalSeen = true;
+      }
+    });
+    wsB.send(
+      JSON.stringify({
+        type: 'hazard_remove',
+        payload: { id: 'hzX' },
+      } satisfies InboundFrame),
+    );
+    await new Promise((r) => setTimeout(r, 100));
+    expect(removalSeen).toBe(false);
+
+    wsA.close();
+    wsB.close();
+  });
 });

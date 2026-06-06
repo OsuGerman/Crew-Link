@@ -160,8 +160,9 @@ export function originatorOf(frame: InboundFrame): string | null {
   if (frame.type === 'hazard') return frame.payload.reporterId;
   if (frame.type === 'checkin') return frame.payload.memberId;
   if (frame.type === 'status') return frame.payload.memberId;
-  // hazard_remove + tour have no single originator field. Tour requires
-  // leader-only DB lookup; hazard_remove must match the original reporter.
-  // Both deferred to a follow-up iteration.
+  // hazard_remove + tour have no single originator field, so they're enforced
+  // in the gateway instead: hazard_remove against the tracked reporter
+  // (snapshot_store); tour leader-only still needs a convoy_members DB lookup
+  // (follow-up).
   return null;
 }

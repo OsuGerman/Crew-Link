@@ -30,6 +30,10 @@ export interface SnapshotStore {
 
   /** Drops a convoy's snapshot (e.g. when it is disbanded). */
   clear(convoyId: string): void;
+
+  /** reporterId of a currently-tracked hazard, or undefined if unknown — lets
+   * the gateway enforce reporter-only hazard removal. */
+  hazardReporter(convoyId: string, hazardId: string): string | undefined;
 }
 
 interface ConvoySnapshot {
@@ -99,6 +103,10 @@ export function createInMemorySnapshotStore(
 
     clear(convoyId) {
       convoys.delete(convoyId);
+    },
+
+    hazardReporter(convoyId, hazardId) {
+      return convoys.get(convoyId)?.hazards.get(hazardId)?.reporterId;
     },
   };
 }

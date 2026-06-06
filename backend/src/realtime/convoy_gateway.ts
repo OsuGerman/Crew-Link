@@ -182,6 +182,23 @@ function handleFrame(
     return;
   }
 
+  // hazard_remove carries no originator field, so enforce reporter-only removal
+  // against the tracked snapshot. Unknown hazards (expired / never seen) pass
+  // through — there is nothing left to protect.
+  if (result.data.type === 'hazard_remove' && snapshotStore !== undefined) {
+    const reporter = snapshotStore.hazardReporter(
+      convoyId,
+      result.data.payload.id,
+    );
+    if (reporter !== undefined && reporter !== originMemberId) {
+      log.warn(
+        { convoyId, hazardId: result.data.payload.id, actual: originMemberId },
+        'hazard_remove by non-reporter — frame dropped',
+      );
+      return;
+    }
+  }
+
   const encoded = encodeFrame(result.data);
   void fanout.publish(convoyId, encoded, originMemberId);
 
