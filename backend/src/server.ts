@@ -14,6 +14,7 @@ import { createInMemorySnapshotStore } from './realtime/snapshot_store.js';
 import { createConvoyRoutes } from './routes/convoys.js';
 import { healthRoute } from './routes/health.js';
 import { createPttRoutes } from './routes/ptt.js';
+import { createUserRoutes } from './routes/users.js';
 import { createVehicleRoutes } from './routes/vehicles.js';
 import {
   createAuthHook,
@@ -148,6 +149,7 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
     const authHook = createAuthHook(dbHandle.db, verifyToken);
     await app.register(createConvoyRoutes({ db: dbHandle, authHook }));
     await app.register(createVehicleRoutes({ db: dbHandle, authHook }));
+    await app.register(createUserRoutes({ db: dbHandle, authHook }));
     await app.register(
       createPttRoutes({ db: dbHandle, env: options.env, authHook }),
     );
