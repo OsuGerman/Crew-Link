@@ -131,6 +131,19 @@ Future<void> _doCreate(WidgetTester tester, {String name = 'Trip'}) async {
 
 void main() {
   group('ConvoyHomeScreen', () {
+    // The active convoy view is designed for a phone-height viewport; the
+    // 800x600 widget-test default is too short once the member list + quick
+    // actions + SOS stack up. Use a realistic phone surface.
+    setUp(() {
+      final view = TestWidgetsFlutterBinding.ensureInitialized()
+          .platformDispatcher
+          .views
+          .first;
+      view.physicalSize = const Size(800, 1200);
+      view.devicePixelRatio = 1.0;
+      addTearDown(view.reset);
+    });
+
     testWidgets('lobby shows create + join actions', (tester) async {
       await tester.pumpWidget(
         _app(_client((req) => http.Response('{}', 200))),

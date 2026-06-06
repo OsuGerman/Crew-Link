@@ -110,6 +110,28 @@ export const checkInFrameSchema = z.object({
   payload: checkInPayloadSchema,
 });
 
+/// Transient one-tap status broadcast (Quick-Actions): pause / fuel stop /
+/// back-in-convoy / vehicle problem. Not persisted — shown as a brief banner.
+export const statusKindSchema = z.enum([
+  'pause',
+  'fuel_stop',
+  'back_in_convoy',
+  'vehicle_problem',
+]);
+
+export const statusPayloadSchema = z.object({
+  memberId: z.string().min(1),
+  kind: statusKindSchema,
+  at: z.string().datetime({ offset: true }),
+});
+
+export type StatusPayload = z.infer<typeof statusPayloadSchema>;
+
+export const statusFrameSchema = z.object({
+  type: z.literal('status'),
+  payload: statusPayloadSchema,
+});
+
 export const inboundFrameSchema = z.discriminatedUnion('type', [
   gpsFrameSchema,
   waypointFrameSchema,
@@ -117,6 +139,7 @@ export const inboundFrameSchema = z.discriminatedUnion('type', [
   hazardRemoveFrameSchema,
   tourFrameSchema,
   checkInFrameSchema,
+  statusFrameSchema,
 ]);
 
 export type InboundFrame = z.infer<typeof inboundFrameSchema>;
@@ -136,6 +159,7 @@ export function originatorOf(frame: InboundFrame): string | null {
   if (frame.type === 'waypoint') return frame.payload?.setBy ?? null;
   if (frame.type === 'hazard') return frame.payload.reporterId;
   if (frame.type === 'checkin') return frame.payload.memberId;
+  if (frame.type === 'status') return frame.payload.memberId;
   // hazard_remove + tour have no single originator field. Tour requires
   // leader-only DB lookup; hazard_remove must match the original reporter.
   // Both deferred to a follow-up iteration.

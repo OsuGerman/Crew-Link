@@ -22,6 +22,7 @@ import 'convoy_radar_view.dart';
 import 'convoy_status_header.dart';
 import 'hazard_banner_strip.dart';
 import 'lost_connection_banner.dart';
+import 'quick_actions_row.dart';
 import 'sos_hold_button.dart';
 import 'waypoint_banner.dart';
 
@@ -95,6 +96,7 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
         const WaypointBanner(),
         const SizedBox(height: AppSpacing.md),
         const HazardBannerStrip(),
+        const QuickActionBanner(),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           child: _MapRadarToggle(
@@ -119,6 +121,8 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
           positions: snapshot,
           selfMemberId: selfId,
         ),
+        const SizedBox(height: AppSpacing.sm),
+        const QuickActionsRow(),
         const SizedBox(height: AppSpacing.sm),
         SosHoldButton(
           onTriggered: snapshot[selfId] == null

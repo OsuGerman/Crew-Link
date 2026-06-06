@@ -4,12 +4,13 @@ import 'dart:math' as math;
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../config/api_config.dart';
-import '../models/gps_update.dart';
-import '../models/hazard_report.dart';
+import '../../features/convoy/domain/quick_action.dart';
 import '../../features/convoy/domain/waypoint.dart';
 import '../../features/convoy/domain/waypoint_check_in.dart';
 import '../../features/convoy/domain/waypoint_tour.dart';
+import '../config/api_config.dart';
+import '../models/gps_update.dart';
+import '../models/hazard_report.dart';
 import 'connection_status.dart';
 import 'hazard_event.dart';
 
@@ -74,6 +75,8 @@ class ConvoySocketClient {
       StreamController<WaypointTour>.broadcast();
   final StreamController<WaypointCheckIn> _checkInController =
       StreamController<WaypointCheckIn>.broadcast();
+  final StreamController<QuickAction> _quickActionController =
+      StreamController<QuickAction>.broadcast();
 
   Stream<GpsUpdate> get gpsUpdates => _gpsController.stream;
   Stream<ConnectionStatus> get connectionStatus => _statusController.stream;
@@ -87,6 +90,8 @@ class ConvoySocketClient {
   Stream<WaypointTour> get tourUpdates => _tourController.stream;
   /// Inbound Check-Ins — Mitglieder die einen Tour-Stopp erreicht haben.
   Stream<WaypointCheckIn> get checkIns => _checkInController.stream;
+  /// Inbound One-Tap-Schnellaktionen (Pause/Tankstopp/…) anderer Mitglieder.
+  Stream<QuickAction> get quickActions => _quickActionController.stream;
   ConnectionStatus get currentStatus => _currentStatus;
 
   Future<void> connect() async {
@@ -223,6 +228,17 @@ class ConvoySocketClient {
     }));
   }
 
+  /// Best-effort publish einer transienten Schnellaktion (Pause/Tankstopp/…).
+  /// Fire-and-forget wie GPS — keine Wiederholung bei Connection-Loss.
+  void publishQuickAction(QuickAction action) {
+    final sink = _channel?.sink;
+    if (sink == null) return;
+    sink.add(jsonEncode({
+      'type': 'status',
+      'payload': action.toJson(),
+    }));
+  }
+
   Future<void> disconnect() async {
     _disposed = true;
     _reconnectTimer?.cancel();
@@ -238,6 +254,9 @@ class ConvoySocketClient {
     if (!_hazardController.isClosed) await _hazardController.close();
     if (!_tourController.isClosed) await _tourController.close();
     if (!_checkInController.isClosed) await _checkInController.close();
+    if (!_quickActionController.isClosed) {
+      await _quickActionController.close();
+    }
   }
 
   void _setStatus(ConnectionStatus next) {
@@ -290,6 +309,13 @@ class ConvoySocketClient {
       if (raw is Map) {
         _checkInController.add(
           WaypointCheckIn.fromJson(raw.cast<String, Object?>()),
+        );
+      }
+    } else if (type == 'status') {
+      final raw = decoded['payload'];
+      if (raw is Map) {
+        _quickActionController.add(
+          QuickAction.fromJson(raw.cast<String, Object?>()),
         );
       }
     }

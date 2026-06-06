@@ -117,6 +117,18 @@ Future<void> _enterActiveConvoy(WidgetTester tester) async {
 
 void main() {
   group('Driver-Mode toggle', () {
+    // Phone-height viewport — the 800x600 default is too short for the active
+    // view's member list + quick actions + SOS stack.
+    setUp(() {
+      final view = TestWidgetsFlutterBinding.ensureInitialized()
+          .platformDispatcher
+          .views
+          .first;
+      view.physicalSize = const Size(800, 1200);
+      view.devicePixelRatio = 1.0;
+      addTearDown(view.reset);
+    });
+
     testWidgets('toggle button is hidden in lobby, shown in active convoy',
         (tester) async {
       await tester.pumpWidget(_app());
