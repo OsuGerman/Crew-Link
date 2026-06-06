@@ -46,6 +46,7 @@ Ein ehrlicher Stand — was läuft, woran gerade gearbeitet wird, was noch offen
 - **Konvoi-Lifecycle** — erstellen, per Code beitreten, verlassen. REST-API mit Firebase-ID-Token-Auth.
 - **Fahrzeugprofile** — mehrere Fahrzeuge pro Nutzer; das aktive Profil bestimmt Standard-Abstand und Karten-Avatar.
 - **Backend** — Fastify mit Drizzle/PostGIS für Geo-Queries, Redis-Fanout für horizontal skalierbare WebSockets.
+- **Datenschutz (GDPR)** — Analytics & Crash-Reporting (Firebase, Sentry, PostHog) sind Opt-in: standardmäßig aus, per einmaligem Consent-Screen freigeschaltet, jederzeit in der Datenschutz-Seite umschaltbar.
 
 ## Projektstruktur
 
