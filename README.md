@@ -1,6 +1,6 @@
 # Crew Link
 
-Konvoi-Koordination für Fahrzeuggruppen: Live-GPS-Karte, automatische Abstandswarnung, Push-to-Talk und CarPlay. Flutter-App (iOS/Android) mit einem Fastify/PostGIS-Backend. In aktiver Entwicklung.
+Konvoi-Koordination für Fahrzeuggruppen: Live-GPS-Karte mit nummerierten Positionen, Grün/Gelb/Rot-Abstandswarnung, Leader-Route mit Adresssuche, SOS, Schnellaktionen, Push-to-Talk und CarPlay. Flutter-App (iOS/Android) mit einem Fastify/PostGIS-Backend. In aktiver Entwicklung.
 
 ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20CarPlay-1a1a1a?style=flat-square)
 ![Flutter](https://img.shields.io/badge/Flutter-3.41-02569B?style=flat-square&logo=flutter)
@@ -19,7 +19,8 @@ Ein ehrlicher Stand — was läuft, woran gerade gearbeitet wird, was noch offen
 - Backend live auf Render (Fastify) mit Konvoi-Lifecycle-REST, Live-GPS-WebSocket-Gateway und echter Firebase-ID-Token-Verifizierung — end-to-end verifiziert (gültiges Token → `201`, ungültiges → `401`).
 - Konvoi erstellen/beitreten gegen das echte Backend; Nutzer-Identität konsistent: die Firebase-UID ist die Member-ID in REST, WebSocket und LiveKit.
 - Postgres + PostGIS (Supabase) inkl. Schema und Migrationen.
-- CI grün: Flutter analyze + 301 Tests, Android-/iOS-Build, Backend-Tests.
+- Live-Karte (MapLibre) mit nummerierten Positionen + Grün/Gelb/Rot-Abstand, Leader-Route mit Adresssuche, SOS-Button, Schnellaktionen und Tankalarm — auf echtem Android-Gerät verifiziert.
+- CI grün: Flutter analyze + 328 Tests, Android-/iOS-Build, Backend-Tests.
 
 **In Arbeit:**
 - Live-GPS-Feintest auf mehreren echten Geräten (Karte, Abstandswarnung) gegen das deployte Backend.
@@ -35,6 +36,11 @@ Ein ehrlicher Stand — was läuft, woran gerade gearbeitet wird, was noch offen
 
 - **Live-Konvoi-Karte** — alle Teilnehmer in Echtzeit auf einer MapLibre-Karte. Updates laufen über WebSocket, nicht über Polling.
 - **Abstandswarnung** — fällt jemand zu weit zurück, bekommen Hintermann und Konvoi-Leader eine Push-Notification.
+- **Nummerierte Positionen + Farbcode** — jedes Mitglied bekommt seine Konvoi-Position (#1 Leader, #2 …) und einen Grün/Gelb/Rot-Status nach Abstand zum Leader, auf Karte und in der Mitgliederliste.
+- **Leader-Route** — der Leader setzt mehrere Ziele per Adresssuche (Nominatim) oder Kartentipp; die Route erscheint live bei allen.
+- **SOS-Notfall** — 3 Sekunden halten, die eigene Position geht als rotes NOTFALL-Signal an den ganzen Konvoi. Direkt erreichbar (auch im Driver-Mode).
+- **Schnellaktionen** — One-Tap-Status an die Gruppe: Pause, Tankstopp, Bin zurück, Problem.
+- **Tankalarm** — persönlicher Tankstand mit Reichweiten-Schätzung, Grün/Gelb/Rot-Warnung und Tankstopp-Broadcast.
 - **Push-to-Talk** — WebRTC mit LiveKit-SFU, bedienbar per Touchscreen oder CarPlay-Taste.
 - **CarPlay** — Karte und PTT auf dem Fahrzeug-Display, über eine Swift-Bridge an die Dart-Seite angebunden.
 - **Konvoi-Lifecycle** — erstellen, per Code beitreten, verlassen. REST-API mit Firebase-ID-Token-Auth.
