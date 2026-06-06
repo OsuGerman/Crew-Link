@@ -60,12 +60,19 @@ class PrivacyPolicyScreen extends ConsumerWidget {
                 'Konvoi-Mitglieder übertragen.',
           ),
           const _Section(
-            title: 'Weitergabe an Dritte',
+            title: 'Weitergabe an Dritte / Auftragsverarbeiter',
             body:
-                'Deine Daten werden nicht an Dritte verkauft oder für Werbung '
-                'genutzt. Für den Betrieb der Echtzeit-Infrastruktur nutzen '
-                'wir Firebase (Google LLC, USA) mit angemessenem Datenschutzniveau '
-                'gemäß EU-Standardvertragsklauseln.',
+                'Deine Daten werden nicht verkauft oder für Werbung genutzt. '
+                'Als Auftragsverarbeiter setzen wir ein:\n'
+                '• Firebase / Google LLC (USA) — Auth, Echtzeit-Infrastruktur, '
+                'Analytics, Crashlytics\n'
+                '• Sentry / Functional Software Inc. (USA) — Absturz- und '
+                'Fehlerberichte\n'
+                '• PostHog Inc. (USA; EU-Hosting eu.i.posthog.com) — '
+                'pseudonyme Nutzungsstatistik\n'
+                'Übermittlungen in die USA erfolgen auf Basis der '
+                'EU-Standardvertragsklauseln. Analytics + Crash-Reporting laufen '
+                'nur mit deiner Einwilligung (Schalter oben).',
           ),
           const _Section(
             title: 'Speicherdauer',

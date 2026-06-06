@@ -14,7 +14,6 @@ import 'core/models/gps_update.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/observability/analytics_service.dart';
 import 'core/observability/app_logger.dart';
-import 'core/observability/funnel_analytics.dart';
 import 'core/observability/observability_bootstrap.dart';
 import 'core/privacy/diagnostics_consent.dart';
 import 'features/auth/application/auth_providers.dart';
@@ -109,11 +108,17 @@ Future<void> main() async {
     } catch (_) {/* kein funktionierender Reporter vor dem Start */}
   }
 
-  // Push notifications (proximity/breach alerts) are a feature, gated by the OS
-  // permission prompt — not by the diagnostics consent. Firebase Analytics +
-  // Crashlytics collection follow the consent (OFF by default).
-  if (!kIsWeb && firebaseReady) {
+  // Apply the diagnostics consent to the analytics/crash SDKs FIRST — Firebase
+  // Analytics + Crashlytics collection toggles and PostHog init/disable — so
+  // nothing is collected before the consent is in effect. (The Android/iOS
+  // manifests also start Firebase collection disabled, closing the window
+  // before this runs.)
+  if (!kIsWeb) {
     await applyDiagnosticsConsent(consent.enabled);
+  }
+  // Push notifications (proximity/breach alerts) are a feature gated by the OS
+  // permission prompt — not by the diagnostics consent.
+  if (!kIsWeb && firebaseReady) {
     FirebaseMessaging.onBackgroundMessage(_fcmBackgroundHandler);
     // alert/badge/sound default to true; request push permission for alerts.
     await FirebaseMessaging.instance.requestPermission();
@@ -122,9 +127,6 @@ Future<void> main() async {
     }
   }
   if (!kIsWeb) {
-    if (consent.enabled) {
-      await FunnelAnalytics.init();
-    }
     // Request location permission early so the GPS producer starts immediately
     // when the user joins their first convoy.
     await LocationPermissionService.requestForConvoy();

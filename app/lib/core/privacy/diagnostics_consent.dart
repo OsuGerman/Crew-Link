@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../observability/app_logger.dart';
+import '../observability/funnel_analytics.dart';
 
 /// The user's choice about analytics + crash diagnostics. GDPR opt-in: until
 /// the user [decided], collection stays OFF ([enabled] == false). Persisted in
@@ -47,5 +48,11 @@ Future<void> applyDiagnosticsConsent(bool enabled) async {
         .setCrashlyticsCollectionEnabled(enabled);
   } catch (e, st) {
     appLog.e('applyDiagnosticsConsent', error: e, stackTrace: st);
+  }
+  // PostHog: set up + enable on consent, stop capturing on withdrawal.
+  if (enabled) {
+    await FunnelAnalytics.init();
+  } else {
+    FunnelAnalytics.disable();
   }
 }

@@ -38,35 +38,52 @@ class _DiagnosticsConsentScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(),
-              Icon(Icons.insights_rounded, size: 64, color: scheme.primary),
-              const SizedBox(height: 24),
-              Text(
-                'Diagnose & Verbesserung',
-                style: textTheme.headlineSmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Mit deiner Erlaubnis erfassen wir anonyme Nutzungs- und '
-                'Absturzberichte (Firebase Analytics, Crashlytics, Sentry, '
-                'PostHog), um Fehler zu finden und Crew Link zu verbessern.\n\n'
-                'Ohne Zustimmung werden keine Diagnose-Daten erhoben — die App '
-                'funktioniert voll. Du kannst die Wahl jederzeit unter '
-                '„Datenschutz" ändern.',
-                style: textTheme.bodyMedium?.copyWith(height: 1.5),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const PrivacyPolicyScreen(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 24),
+                      Icon(Icons.insights_rounded,
+                          size: 64, color: scheme.primary),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Diagnose & Verbesserung',
+                        style: textTheme.headlineSmall,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Mit deiner Erlaubnis erfassen wir pseudonyme '
+                        'Diagnose-Daten, um Fehler zu finden und Crew Link zu '
+                        'verbessern:\n\n'
+                        '•  Genutzte Funktionen + Sitzungsdauer '
+                        '(Firebase Analytics, PostHog)\n'
+                        '•  Absturz- und Fehlerberichte inkl. Stacktrace '
+                        '(Crashlytics, Sentry)\n\n'
+                        'Ohne Werbe-IDs, ohne app-übergreifendes Tracking. '
+                        'Verarbeitung durch Google, Sentry und PostHog '
+                        '(USA/EU, EU-Standardvertragsklauseln).\n\n'
+                        'Ohne Zustimmung werden keine Diagnose-Daten erhoben — '
+                        'die App funktioniert voll. Du kannst die Wahl '
+                        'jederzeit unter „Datenschutz" ändern.',
+                        style: textTheme.bodyMedium?.copyWith(height: 1.5),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const PrivacyPolicyScreen(),
+                          ),
+                        ),
+                        child: const Text('Datenschutzerklärung lesen'),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
                 ),
-                child: const Text('Datenschutzerklärung lesen'),
               ),
-              const Spacer(),
               FilledButton(
                 key: const ValueKey('consent-accept'),
                 onPressed: _busy ? null : () => _decide(true),

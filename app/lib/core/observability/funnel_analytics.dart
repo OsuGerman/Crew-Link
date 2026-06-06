@@ -14,21 +14,39 @@ class FunnelAnalytics {
     defaultValue: 'https://eu.i.posthog.com',
   );
 
+  // Capture is OFF until [init] runs (only with diagnostics consent). Events
+  // must never fire before consent — e.g. during onboarding, which precedes
+  // the consent gate. [_setupDone] guards against calling PostHog setup twice.
+  static bool _enabled = false;
+  static bool _setupDone = false;
+
+  /// Sets up PostHog and enables capture. Call only with diagnostics consent.
+  /// Idempotent — safe to call again on a runtime opt-in.
   static Future<void> init() async {
     if (_apiKey.isEmpty) return;
-    try {
-      final config = PostHogConfig(_apiKey)..host = _host;
-      await Posthog().setup(config);
-    } catch (e) {
-      appLog.w('PostHog init failed', error: e);
+    if (!_setupDone) {
+      try {
+        final config = PostHogConfig(_apiKey)..host = _host;
+        await Posthog().setup(config);
+        _setupDone = true;
+      } catch (e) {
+        appLog.w('PostHog init failed', error: e);
+        return;
+      }
     }
+    _enabled = true;
+  }
+
+  /// Stops capturing — runtime consent withdrawal.
+  static void disable() {
+    _enabled = false;
   }
 
   static Future<void> _capture(
     String event, {
     Map<String, Object>? properties,
   }) async {
-    if (_apiKey.isEmpty) return;
+    if (!_enabled) return;
     try {
       await Posthog().capture(eventName: event, properties: properties);
     } catch (e) {
@@ -37,7 +55,7 @@ class FunnelAnalytics {
   }
 
   static Future<void> identify(String userId) async {
-    if (_apiKey.isEmpty) return;
+    if (!_enabled) return;
     try {
       await Posthog().identify(userId: userId);
     } catch (e) {
