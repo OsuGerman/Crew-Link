@@ -35,6 +35,7 @@ class HazardBannerStrip extends ConsumerWidget {
     ),
     HazardType.policeCheckpoint:
         (Icons.local_police_rounded, Color(0xFF06B6D4), 'Polizei'),
+    HazardType.sos: (Icons.sos_rounded, Color(0xFFE94560), 'NOTFALL'),
     HazardType.other:
         (Icons.help_outline_rounded, Color(0xFF6B6B73), 'Sonstiges'),
   };

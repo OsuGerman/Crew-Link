@@ -114,11 +114,7 @@ class HazardQuickSheet extends ConsumerWidget {
                   ],
                 ),
               )
-            else ...[
-              _SosHoldButton(
-                onTriggered: () => _reportSos(context, ref, selfPos, selfId),
-              ),
-              const SizedBox(height: AppSpacing.lg),
+            else
               GridView.count(
                 key: const ValueKey('hazard-quick-grid'),
                 shrinkWrap: true,
@@ -135,7 +131,6 @@ class HazardQuickSheet extends ConsumerWidget {
                     ),
                 ],
               ),
-            ],
           ],
         ),
       ),
@@ -167,142 +162,6 @@ class HazardQuickSheet extends ConsumerWidget {
           ],
         ),
         duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _reportSos(
-    BuildContext context,
-    WidgetRef ref,
-    GpsUpdate selfPos,
-    String selfId,
-  ) {
-    ref.read(hazardPingsProvider.notifier).report(
-          type: HazardType.sos,
-          latitude: selfPos.latitude,
-          longitude: selfPos.longitude,
-          reporterId: selfId,
-          convoyId: convoy.id,
-        );
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        backgroundColor: AppColors.danger,
-        content: Row(
-          children: [
-            Icon(Icons.sos_rounded, color: Colors.white),
-            SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                'SOS an alle gesendet — deine Position wurde geteilt.',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Hold-3-seconds SOS trigger — broadcasts the user's position as an SOS to all
-/// convoy members. The hold + progress fill guards against accidental taps.
-class _SosHoldButton extends StatefulWidget {
-  const _SosHoldButton({required this.onTriggered});
-
-  final VoidCallback onTriggered;
-
-  @override
-  State<_SosHoldButton> createState() => _SosHoldButtonState();
-}
-
-class _SosHoldButtonState extends State<_SosHoldButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  bool _fired = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..addStatusListener((s) {
-        if (s == AnimationStatus.completed && !_fired) {
-          _fired = true;
-          widget.onTriggered();
-        }
-      });
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  void _cancel() {
-    if (!_fired) _ctrl.reverse();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) {
-        _fired = false;
-        _ctrl.forward(from: 0);
-      },
-      onTapUp: (_) => _cancel(),
-      onTapCancel: _cancel,
-      child: AnimatedBuilder(
-        animation: _ctrl,
-        builder: (_, __) {
-          final p = _ctrl.value;
-          final secondsLeft = ((1 - p) * 3).ceil();
-          return Container(
-            key: const ValueKey('sos-hold-button'),
-            height: 60,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: AppColors.danger.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadii.card),
-              border: Border.all(color: AppColors.danger, width: 1.4),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: p,
-                  child: ColoredBox(
-                    color: AppColors.danger.withValues(alpha: 0.4),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.sos_rounded, color: AppColors.danger),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      p > 0 && p < 1
-                          ? 'Halten … ${secondsLeft}s'
-                          : 'SOS · 3 Sek. halten',
-                      style: const TextStyle(
-                        color: AppColors.danger,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }
