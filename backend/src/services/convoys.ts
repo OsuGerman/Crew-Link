@@ -281,3 +281,35 @@ async function loadConvoyPayload(
     })),
   };
 }
+
+export class NotConvoyMemberError extends Error {
+  constructor() {
+    super('Not a member of this convoy');
+    this.name = 'NotConvoyMemberError';
+  }
+}
+
+/// Returns the convoy payload for a CURRENT member — backs GET /convoys/:id so
+/// a member who joined after you shows up in your roster without waiting for
+/// their first GPS frame. Throws [NotConvoyMemberError] for non-members so we
+/// never leak another convoy's roster.
+export async function getConvoyForMember(
+  db: Database,
+  input: { convoyId: string; userId: string },
+): Promise<ConvoyApiPayload> {
+  const [membership] = await db
+    .select({ id: convoyMembers.id })
+    .from(convoyMembers)
+    .where(
+      and(
+        eq(convoyMembers.convoyId, input.convoyId),
+        eq(convoyMembers.userId, input.userId),
+        isNull(convoyMembers.leftAt),
+      ),
+    )
+    .limit(1);
+  if (!membership) {
+    throw new NotConvoyMemberError();
+  }
+  return loadConvoyPayload(db, input.convoyId);
+}

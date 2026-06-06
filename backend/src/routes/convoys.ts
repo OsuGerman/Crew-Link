@@ -4,8 +4,10 @@ import { z } from 'zod';
 import type { DatabaseHandle } from '../db/client.js';
 import {
   ConvoyNotFoundError,
+  NotConvoyMemberError,
   NotConvoyOwnerError,
   createConvoy,
+  getConvoyForMember,
   InviteCodeNotFoundError,
   joinConvoy,
   leaveConvoy,
@@ -107,6 +109,26 @@ export function createConvoyRoutes(
           convoyId: req.params.convoyId,
         });
         return reply.code(HTTP_NO_CONTENT).send();
+      },
+    );
+
+    app.get<{ Params: { convoyId: string } }>(
+      '/convoys/:convoyId',
+      async (req, reply) => {
+        try {
+          const convoy = await getConvoyForMember(options.db.db, {
+            convoyId: req.params.convoyId,
+            userId: req.authUser!.id,
+          });
+          return reply.send(convoy);
+        } catch (err) {
+          if (err instanceof NotConvoyMemberError) {
+            return reply
+                .code(HTTP_NOT_FOUND)
+                .send({ error: 'convoy not found' });
+          }
+          throw err;
+        }
       },
     );
 
