@@ -10,12 +10,15 @@ import '../../features/auth/application/auth_providers.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/convoy/presentation/convoy_home_screen.dart';
 import '../../features/convoy/presentation/deep_link_join_screen.dart';
+import '../../features/legal/presentation/diagnostics_consent_screen.dart';
 import '../../features/legal/presentation/privacy_policy_screen.dart';
 import '../../features/maps/presentation/convoy_map_screen.dart';
 import '../../features/onboarding/application/onboarding_profile_notifier.dart';
 import '../../features/onboarding/application/onboarding_state.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/vehicle/presentation/vehicle_profile_screen.dart';
+import '../privacy/diagnostics_consent.dart';
+import '../privacy/diagnostics_consent_providers.dart';
 
 abstract final class AppRoutes {
   static const String login = '/login';
@@ -25,6 +28,7 @@ abstract final class AppRoutes {
   static const String vehicleProfile = '/vehicle/profile';
   static const String convoyJoin = '/join/:code';
   static const String privacy = '/privacy';
+  static const String consent = '/consent';
 
   static String convoyJoinPath(String code) => '/join/$code';
 }
@@ -49,12 +53,17 @@ class _RouterRefreshNotifier extends ChangeNotifier {
       devSignedInOverrideProvider,
       (_, __) => notifyListeners(),
     );
+    _subConsent = ref.listen<AsyncValue<DiagnosticsConsent>>(
+      diagnosticsConsentProvider,
+      (_, __) => notifyListeners(),
+    );
   }
 
   late final ProviderSubscription<bool> _subOnboarding;
   late final ProviderSubscription<AsyncValue<User?>> _subAuth;
   late final ProviderSubscription<AsyncValue<OnboardingProfile>> _subProfile;
   late final ProviderSubscription<bool> _subDevSignedIn;
+  late final ProviderSubscription<AsyncValue<DiagnosticsConsent>> _subConsent;
 
   @override
   void dispose() {
@@ -62,6 +71,7 @@ class _RouterRefreshNotifier extends ChangeNotifier {
     _subAuth.close();
     _subProfile.close();
     _subDevSignedIn.close();
+    _subConsent.close();
     super.dispose();
   }
 }
@@ -99,16 +109,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         return atLogin ? null : AppRoutes.login;
       }
 
-      // Signed-in path: resolve onboarding gate.
+      // Signed-in path: resolve onboarding, then the diagnostics-consent gate.
       final profileAsync = ref.read(onboardingProfileProvider);
       if (profileAsync.isLoading) return null;
-
       final onboarded = ref.read(onboardingCompletedProvider);
-      final atOnboarding = state.matchedLocation == AppRoutes.onboarding;
 
-      if (atLogin) return onboarded ? AppRoutes.home : AppRoutes.onboarding;
-      if (!onboarded && !atOnboarding) return AppRoutes.onboarding;
-      if (onboarded && atOnboarding) return AppRoutes.home;
+      final consentAsync = ref.read(diagnosticsConsentProvider);
+      if (consentAsync.isLoading) return null;
+      final consentDecided = consentAsync.valueOrNull?.decided ?? false;
+
+      final atOnboarding = state.matchedLocation == AppRoutes.onboarding;
+      final atConsent = state.matchedLocation == AppRoutes.consent;
+
+      // Gate 1: onboarding.
+      if (!onboarded) {
+        return atOnboarding ? null : AppRoutes.onboarding;
+      }
+      // Gate 2: one-time diagnostics consent (GDPR opt-in).
+      if (!consentDecided) {
+        return atConsent ? null : AppRoutes.consent;
+      }
+      // Fully set up — keep the user out of the setup/login screens.
+      if (atLogin || atOnboarding || atConsent) return AppRoutes.home;
       return null;
     },
     routes: [
@@ -141,6 +163,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.privacy,
         builder: (_, __) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.consent,
+        builder: (_, __) => const DiagnosticsConsentScreen(),
       ),
     ],
   );

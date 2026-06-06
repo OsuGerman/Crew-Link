@@ -20,6 +20,11 @@ class ObservabilityBootstrap {
 
   static ObservabilityBootstrap? _instance;
 
+  /// Whether the user consented to crash diagnostics. Set once at startup from
+  /// the stored consent (defaults to false / opt-in). When false, [build]
+  /// returns a no-op reporter so manual reportError calls collect nothing.
+  static bool diagnosticsEnabled = false;
+
   /// Singleton created by [build]; accessible app-wide for setUser / reportError.
   static ObservabilityBootstrap get current {
     assert(_instance != null, 'Call ObservabilityBootstrap.build() first');
@@ -38,14 +43,21 @@ class ObservabilityBootstrap {
     final CrashReporter cl;
     if (overrideForTesting != null) {
       cl = overrideForTesting;
-    } else if (kIsWeb) {
+    } else if (kIsWeb || !diagnosticsEnabled) {
+      // Web, or no diagnostics consent → never touch Crashlytics.
       cl = const NullCrashReporter();
     } else {
       cl = CrashlyticsReporter(crashlytics ?? FirebaseCrashlytics.instance);
     }
+    // Without consent (and not a test override) nothing reaches Sentry either —
+    // collapse the multi-reporter to the plain no-op reporter.
+    final CrashReporter reporter =
+        (overrideForTesting == null && !kIsWeb && !diagnosticsEnabled)
+            ? cl
+            : MultiCrashReporter([cl, SentryReporter()]);
     _instance = ObservabilityBootstrap._(
       installReporter: cl,
-      reporter: MultiCrashReporter([cl, SentryReporter()]),
+      reporter: reporter,
     );
     return _instance!;
   }

@@ -9,15 +9,16 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'app/crew_link_app.dart';
 import 'core/firebase/firebase_options.dart';
+import 'core/location/location_permission_service.dart';
 import 'core/models/gps_update.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/observability/analytics_service.dart';
 import 'core/observability/app_logger.dart';
 import 'core/observability/funnel_analytics.dart';
 import 'core/observability/observability_bootstrap.dart';
+import 'core/privacy/diagnostics_consent.dart';
 import 'features/auth/application/auth_providers.dart';
 import 'features/convoy/application/convoy_providers.dart';
-import 'core/location/location_permission_service.dart';
 
 const _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 const _sentryRelease = String.fromEnvironment(
@@ -80,6 +81,12 @@ Future<void> main() async {
   // reliably capture zone-scoped errors in release.
   SentryWidgetsFlutterBinding.ensureInitialized();
 
+  // GDPR: analytics + crash diagnostics are opt-in. Load the stored choice
+  // (defaults to OFF / undecided) before anything reports, and propagate it to
+  // the observability bootstrap so manual reportError calls respect it too.
+  final consent = await DiagnosticsConsent.load();
+  ObservabilityBootstrap.diagnosticsEnabled = consent.enabled;
+
   // Firebase has a real Web config too → initialise on every platform so the
   // Web build (main.dart on Chrome) can use Auth. FCM, Analytics and the
   // location-permission prompt stay native-only below.
@@ -102,17 +109,22 @@ Future<void> main() async {
     } catch (_) {/* kein funktionierender Reporter vor dem Start */}
   }
 
+  // Push notifications (proximity/breach alerts) are a feature, gated by the OS
+  // permission prompt — not by the diagnostics consent. Firebase Analytics +
+  // Crashlytics collection follow the consent (OFF by default).
   if (!kIsWeb && firebaseReady) {
+    await applyDiagnosticsConsent(consent.enabled);
     FirebaseMessaging.onBackgroundMessage(_fcmBackgroundHandler);
-    await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    await AnalyticsService.instance.logAppOpen();
+    // alert/badge/sound default to true; request push permission for alerts.
+    await FirebaseMessaging.instance.requestPermission();
+    if (consent.enabled) {
+      await AnalyticsService.instance.logAppOpen();
+    }
   }
   if (!kIsWeb) {
-    await FunnelAnalytics.init();
+    if (consent.enabled) {
+      await FunnelAnalytics.init();
+    }
     // Request location permission early so the GPS producer starts immediately
     // when the user joins their first convoy.
     await LocationPermissionService.requestForConvoy();
@@ -121,33 +133,12 @@ Future<void> main() async {
   // Crashlytics braucht ein initialisiertes Firebase; auf Web liefert build()
   // den NullCrashReporter (immer sicher). Bei fehlgeschlagenem Firebase-Init
   // überspringen, sonst crasht FirebaseCrashlytics.instance hier erneut.
-  if (kIsWeb || firebaseReady) {
+  // Crash hooks only when the user consented to diagnostics.
+  if (consent.enabled && (kIsWeb || firebaseReady)) {
     ObservabilityBootstrap.build().install();
   }
 
-  if (_sentryDsn.isEmpty) {
-    appLog.w('[Sentry] SENTRY_DSN not set — crash reporting disabled');
-  }
-
-  await SentryFlutter.init(
-    (options) {
-      options.dsn = _sentryDsn;
-      options.release = _sentryRelease;
-      options.environment = _sentryEnv;
-      // dist = build number; feeds Sentry Release Health adoption graph.
-      options.dist = const String.fromEnvironment(
-        'CREW_LINK_BUILD_NUMBER',
-        defaultValue: '1',
-      );
-      options.tracesSampleRate = 0.1;
-      options.enableAutoSessionTracking = true;
-      options.autoSessionTrackingInterval = const Duration(seconds: 30);
-      options.attachStacktrace = true;
-      options.sendDefaultPii = false;
-      options.maxBreadcrumbs = 50;
-    },
-    appRunner: () => runApp(
-      ProviderScope(
+  Widget appRoot() => ProviderScope(
         overrides: [
           authTokenProvider.overrideWith((ref) {
             return ref.watch(authIdTokenProvider).valueOrNull ?? '';
@@ -162,7 +153,34 @@ Future<void> main() async {
             ),
         ],
         child: const CrewLinkApp(),
-      ),
-    ),
-  );
+      );
+
+  // Sentry only runs when the user consented to diagnostics; otherwise the app
+  // starts without the Sentry error zone.
+  if (consent.enabled) {
+    if (_sentryDsn.isEmpty) {
+      appLog.w('[Sentry] SENTRY_DSN not set — crash reporting disabled');
+    }
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = _sentryDsn;
+        options.release = _sentryRelease;
+        options.environment = _sentryEnv;
+        // dist = build number; feeds Sentry Release Health adoption graph.
+        options.dist = const String.fromEnvironment(
+          'CREW_LINK_BUILD_NUMBER',
+          defaultValue: '1',
+        );
+        options.tracesSampleRate = 0.1;
+        options.enableAutoSessionTracking = true;
+        options.autoSessionTrackingInterval = const Duration(seconds: 30);
+        options.attachStacktrace = true;
+        options.sendDefaultPii = false;
+        options.maxBreadcrumbs = 50;
+      },
+      appRunner: () => runApp(appRoot()),
+    );
+  } else {
+    runApp(appRoot());
+  }
 }

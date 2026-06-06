@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PrivacyPolicyScreen extends StatelessWidget {
+import '../../../core/privacy/diagnostics_consent_providers.dart';
+
+class PrivacyPolicyScreen extends ConsumerWidget {
   const PrivacyPolicyScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
@@ -18,7 +21,22 @@ class PrivacyPolicyScreen extends StatelessWidget {
             'Stand: Mai 2026',
             style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          SwitchListTile(
+            key: const ValueKey('diagnostics-consent-toggle'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Diagnose- & Analyse-Daten'),
+            subtitle: const Text(
+              'Anonyme Nutzungs- und Absturzberichte (Firebase Analytics, '
+              'Crashlytics, Sentry, PostHog) zur Verbesserung der App. '
+              'Standardmäßig aus.',
+            ),
+            value: ref.watch(diagnosticsConsentProvider).valueOrNull?.enabled ??
+                false,
+            onChanged: (v) =>
+                ref.read(diagnosticsConsentProvider.notifier).decide(v),
+          ),
+          const Divider(height: 32),
           const _Section(
             title: 'Verantwortlicher',
             body: 'Adrian Mirwaldt\nadrian.mirwaldt21@gmail.com',
