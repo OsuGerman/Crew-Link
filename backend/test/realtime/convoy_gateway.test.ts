@@ -53,7 +53,13 @@ describe('convoy gateway', () => {
 
   beforeAll(async () => {
     const env = loadEnv({ NODE_ENV: 'test', LOG_LEVEL: 'fatal' });
-    app = await buildApp({ env });
+    app = await buildApp({
+      env,
+      gateway: {
+        // MEMBER_A is the convoy owner/leader for the leader-only frame tests.
+        resolveLeader: async (memberId) => memberId === MEMBER_A,
+      },
+    });
     await app.listen({ host: '127.0.0.1', port: 0 });
     port = (app.server.address() as AddressInfo).port;
   });
@@ -234,6 +240,69 @@ describe('convoy gateway', () => {
     expect(removalSeen).toBe(false);
 
     wsA.close();
+    wsB.close();
+  });
+
+  it('broadcasts a tour frame from the convoy leader', async () => {
+    const convoy = 'convoy-tour-ok';
+    const wsLeader = await openSocket(url(MEMBER_A, convoy)); // leader
+    const wsB = await openSocket(url(MEMBER_B, convoy));
+
+    const inbound = nextMessage(wsB);
+    wsLeader.send(
+      JSON.stringify({
+        type: 'tour',
+        payload: {
+          stops: [
+            {
+              latitude: 48,
+              longitude: 11,
+              label: 'Stop',
+              setBy: MEMBER_A,
+              setAt: new Date().toISOString(),
+            },
+          ],
+        },
+      } satisfies InboundFrame),
+    );
+
+    const received = JSON.parse(await inbound) as InboundFrame;
+    expect(received.type).toBe('tour');
+
+    wsLeader.close();
+    wsB.close();
+  });
+
+  it('drops a tour frame from a non-leader', async () => {
+    const convoy = 'convoy-tour-deny';
+    const wsLeader = await openSocket(url(MEMBER_A, convoy));
+    const wsB = await openSocket(url(MEMBER_B, convoy));
+
+    let seen = false;
+    wsLeader.addEventListener('message', () => {
+      seen = true;
+    });
+    wsB.send(
+      JSON.stringify({
+        type: 'tour',
+        payload: {
+          stops: [
+            {
+              latitude: 48,
+              longitude: 11,
+              label: 'Stop',
+              setBy: MEMBER_B,
+              setAt: new Date().toISOString(),
+            },
+          ],
+        },
+      } satisfies InboundFrame),
+    );
+
+    await new Promise((r) => setTimeout(r, 100));
+    expect(seen).toBe(false);
+
+    wsLeader.close();
     wsB.close();
   });
 });

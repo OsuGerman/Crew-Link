@@ -18,6 +18,7 @@ import { createVehicleRoutes } from './routes/vehicles.js';
 import {
   createAuthHook,
   createFirebaseTokenVerifier,
+  createLeaderResolver,
   createMemberResolver,
   devTokenVerifier,
   type TokenVerifier,
@@ -119,6 +120,9 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
         dbHandle.db,
         verifyToken,
       );
+    }
+    if (gatewayOptions.resolveLeader === undefined) {
+      gatewayOptions.resolveLeader = createLeaderResolver(dbHandle.db);
     }
     if (gatewayOptions.positionStore === undefined) {
       gatewayOptions.positionStore = createDbPositionStore(dbHandle.db);

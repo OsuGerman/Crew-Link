@@ -26,6 +26,8 @@ export interface ConvoyGatewayOptions {
   // the member ID; production will replace this with JWT verification +
   // a `convoy_members` membership lookup.
   resolveMember?: (token: string, convoyId: string) => Promise<string | null>;
+  // True iff the member is the convoy owner — gates leader-only frames (tour).
+  resolveLeader?: (memberId: string, convoyId: string) => Promise<boolean>;
   // Fan-out adapter for broadcasting frames. Defaults to InProcessFanout
   // (single-instance). Pass RedisFanout for multi-instance deployments.
   fanout?: FanoutAdapter;
@@ -52,6 +54,7 @@ export function createConvoyGateway(
   const fanout: FanoutAdapter = options.fanout ?? new InProcessFanout();
   const positionStore = options.positionStore;
   const snapshotStore = options.snapshotStore;
+  const resolveLeader = options.resolveLeader;
 
   return async (app) => {
     // Only close the fanout if we created it; externally-owned fanouts
@@ -120,13 +123,14 @@ export function createConvoyGateway(
         }
 
         socket.on('message', (raw: Buffer | ArrayBuffer | Buffer[]) => {
-          handleFrame(
+          void handleFrame(
             raw,
             memberId,
             convoyId,
             fanout,
             positionStore,
             snapshotStore,
+            resolveLeader,
             app.log,
           );
         });
@@ -139,15 +143,18 @@ export function createConvoyGateway(
   };
 }
 
-function handleFrame(
+async function handleFrame(
   raw: Buffer | ArrayBuffer | Buffer[],
   originMemberId: string,
   convoyId: string,
   fanout: FanoutAdapter,
   positionStore: PositionStore | undefined,
   snapshotStore: SnapshotStore | undefined,
+  resolveLeader:
+    | ((memberId: string, convoyId: string) => Promise<boolean>)
+    | undefined,
   log: { warn: (obj: unknown, msg?: string) => void },
-): void {
+): Promise<void> {
   const text = bufferToString(raw);
   if (text === null) {
     return;
@@ -194,6 +201,18 @@ function handleFrame(
       log.warn(
         { convoyId, hazardId: result.data.payload.id, actual: originMemberId },
         'hazard_remove by non-reporter — frame dropped',
+      );
+      return;
+    }
+  }
+
+  // Leader-only: the route/tour may only be set by the convoy owner.
+  if (result.data.type === 'tour' && resolveLeader !== undefined) {
+    const isLeader = await resolveLeader(originMemberId, convoyId);
+    if (!isLeader) {
+      log.warn(
+        { convoyId, memberId: originMemberId },
+        'tour from non-leader — frame dropped',
       );
       return;
     }

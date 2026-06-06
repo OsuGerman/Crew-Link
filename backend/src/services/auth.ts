@@ -176,3 +176,29 @@ export function createMemberResolver(
     return verified.uid;
   };
 }
+
+/**
+ * WS-gateway leader check: resolves to true iff `memberId` (the already-verified
+ * Firebase UID) is the current owner of `convoyId`. Gates leader-only frames
+ * (the route/tour). No token verification — the caller resolved the member from
+ * a verified token already.
+ */
+export function createLeaderResolver(
+  db: Database,
+): (memberId: string, convoyId: string) => Promise<boolean> {
+  return async (memberId, convoyId) => {
+    const rows = await db
+      .select({ role: convoyMembers.role })
+      .from(convoyMembers)
+      .innerJoin(users, eq(convoyMembers.userId, users.id))
+      .where(
+        and(
+          eq(convoyMembers.convoyId, convoyId),
+          eq(users.appleUserId, memberId),
+          isNull(convoyMembers.leftAt),
+        ),
+      )
+      .limit(1);
+    return rows[0]?.role === 'owner';
+  };
+}
