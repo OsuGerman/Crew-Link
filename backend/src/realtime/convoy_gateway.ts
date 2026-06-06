@@ -2,6 +2,7 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 
 import { InProcessFanout, type FanoutAdapter } from './fanout.js';
 import type { PositionStore } from './position_store.js';
+import type { SnapshotStore } from './snapshot_store.js';
 import { encodeFrame, inboundFrameSchema, originatorOf } from './wire.js';
 
 declare module 'fastify' {
@@ -31,6 +32,9 @@ export interface ConvoyGatewayOptions {
   // Persists GPS positions and replays a snapshot to newly-connected sockets so
   // late joiners aren't staring at an empty radar. Omitted → no persistence.
   positionStore?: PositionStore;
+  // Replays the convoy "world state" (hazards, route, waypoint) to newly-
+  // connected sockets so late joiners see them immediately. Omitted → no replay.
+  snapshotStore?: SnapshotStore;
 }
 
 const defaultResolveMember = async (
@@ -47,6 +51,7 @@ export function createConvoyGateway(
   const ownFanout = options.fanout === undefined;
   const fanout: FanoutAdapter = options.fanout ?? new InProcessFanout();
   const positionStore = options.positionStore;
+  const snapshotStore = options.snapshotStore;
 
   return async (app) => {
     // Only close the fanout if we created it; externally-owned fanouts
@@ -104,8 +109,26 @@ export function createConvoyGateway(
             });
         }
 
+        // Replay the current hazards / route / waypoint (synchronous, in-memory)
+        // so a late joiner sees them without waiting for the next change.
+        if (snapshotStore !== undefined) {
+          for (const frame of snapshotStore.snapshot(convoyId)) {
+            if (socket.readyState === socket.OPEN) {
+              socket.send(encodeFrame(frame));
+            }
+          }
+        }
+
         socket.on('message', (raw: Buffer | ArrayBuffer | Buffer[]) => {
-          handleFrame(raw, memberId, convoyId, fanout, positionStore, app.log);
+          handleFrame(
+            raw,
+            memberId,
+            convoyId,
+            fanout,
+            positionStore,
+            snapshotStore,
+            app.log,
+          );
         });
 
         socket.on('close', () => {
@@ -122,6 +145,7 @@ function handleFrame(
   convoyId: string,
   fanout: FanoutAdapter,
   positionStore: PositionStore | undefined,
+  snapshotStore: SnapshotStore | undefined,
   log: { warn: (obj: unknown, msg?: string) => void },
 ): void {
   const text = bufferToString(raw);
@@ -169,6 +193,9 @@ function handleFrame(
         log.warn({ err, convoyId }, 'position persist failed');
       });
   }
+
+  // Fold hazards / route / waypoint into the convoy snapshot for late joiners.
+  snapshotStore?.record(convoyId, result.data);
 }
 
 function bufferToString(

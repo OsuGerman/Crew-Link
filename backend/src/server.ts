@@ -10,6 +10,7 @@ import {
   type ConvoyGatewayOptions,
 } from './realtime/convoy_gateway.js';
 import { createDbPositionStore } from './realtime/position_store.js';
+import { createInMemorySnapshotStore } from './realtime/snapshot_store.js';
 import { createConvoyRoutes } from './routes/convoys.js';
 import { healthRoute } from './routes/health.js';
 import { createPttRoutes } from './routes/ptt.js';
@@ -131,6 +132,11 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
       await redisFanout.close();
     });
     gatewayOptions.fanout = redisFanout;
+  } else if (gatewayOptions.snapshotStore === undefined) {
+    // Single-instance only: in-memory hazard/route/waypoint snapshot for late
+    // joiners. With RedisFanout (multi-instance) a per-process snapshot would
+    // be incomplete, so it's left off until backed by shared state.
+    gatewayOptions.snapshotStore = createInMemorySnapshotStore();
   }
   await app.register(createConvoyGateway(gatewayOptions));
 

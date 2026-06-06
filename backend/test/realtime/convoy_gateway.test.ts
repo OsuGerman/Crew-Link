@@ -162,4 +162,34 @@ describe('convoy gateway', () => {
     wsA.close();
     wsB.close();
   });
+
+  it('replays an existing hazard to a late joiner on connect', async () => {
+    const lateConvoy = 'convoy-late';
+    const wsA = await openSocket(url(MEMBER_A, lateConvoy));
+
+    // A reports a hazard before B joins.
+    wsA.send(
+      JSON.stringify({
+        type: 'hazard',
+        payload: {
+          id: 'hz1',
+          type: 'accident',
+          latitude: 52.5,
+          longitude: 13.4,
+          reporterId: MEMBER_A,
+          createdAt: new Date().toISOString(),
+        },
+      } satisfies InboundFrame),
+    );
+    await new Promise((r) => setTimeout(r, 50)); // let the gateway record it
+
+    // B joins late → the gateway replays the recorded hazard on connect.
+    const wsB = await openSocket(url(MEMBER_B, lateConvoy));
+    const received = JSON.parse(await nextMessage(wsB)) as InboundFrame;
+    expect(received.type).toBe('hazard');
+    expect(received.payload).toMatchObject({ id: 'hz1', reporterId: MEMBER_A });
+
+    wsA.close();
+    wsB.close();
+  });
 });
