@@ -69,6 +69,18 @@ class ConvoyApi {
     }
   }
 
+  /// GDPR / Play account deletion — removes the user, their vehicle, their
+  /// memberships and the convoys they own. Firebase Auth is deleted separately.
+  Future<void> deleteAccount({required String authToken}) async {
+    final response = await _client.delete(
+      config.restBaseUrl.replace(path: '/users/me'),
+      headers: {'Authorization': 'Bearer $authToken'},
+    );
+    if (response.statusCode >= 400) {
+      throw _ConvoyApiException(response.statusCode, response.body);
+    }
+  }
+
   Map<String, String> _authHeaders(String token) => {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',

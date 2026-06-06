@@ -19,6 +19,10 @@ abstract class AuthRepository {
     String password,
   );
   Future<void> signOut();
+
+  /// Deletes the currently signed-in Firebase user account. May throw a
+  /// `requires-recent-login` FirebaseAuthException if the session is stale.
+  Future<void> deleteAccount();
 }
 
 class FirebaseAuthRepository implements AuthRepository {
@@ -82,6 +86,11 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _auth.signOut();
+
+  @override
+  Future<void> deleteAccount() async {
+    await _auth.currentUser?.delete();
+  }
 }
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {

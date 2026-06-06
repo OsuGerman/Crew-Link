@@ -11,6 +11,7 @@ import '../../../core/models/convoy.dart';
 import '../../../core/observability/app_logger.dart';
 import '../../../core/observability/observability_bootstrap.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../auth/presentation/account_screen.dart';
 import '../../beta/presentation/beta_feedback_sheet.dart';
 import '../../legal/presentation/privacy_policy_screen.dart';
 import '../../maps/presentation/convoy_map_screen.dart';
@@ -138,6 +139,12 @@ class ConvoyHomeScreen extends ConsumerWidget {
                       builder: (_) => const PrivacyPolicyScreen(),
                     ),
                   );
+                case 'account':
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const AccountScreen(),
+                    ),
+                  );
               }
             },
             itemBuilder: (context) => [
@@ -192,6 +199,16 @@ class ConvoyHomeScreen extends ConsumerWidget {
                     Icon(Icons.info_outline),
                     SizedBox(width: 12),
                     Text('Datenschutz'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'account',
+                child: Row(
+                  children: [
+                    Icon(Icons.manage_accounts_outlined),
+                    SizedBox(width: 12),
+                    Text('Konto'),
                   ],
                 ),
               ),

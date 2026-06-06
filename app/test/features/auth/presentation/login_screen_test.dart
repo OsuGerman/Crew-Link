@@ -46,6 +46,9 @@ class _FakeAuthRepo implements AuthRepository {
 
   @override
   Future<void> signOut() async {}
+
+  @override
+  Future<void> deleteAccount() async {}
 }
 
 class _FakeCredential extends Fake implements UserCredential {}

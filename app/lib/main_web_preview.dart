@@ -388,6 +388,9 @@ class _DemoAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {}
+
+  @override
+  Future<void> deleteAccount() async {}
 }
 
 /// Stub-FirebaseDatabase — `FirebaseDatabase.instance` würde auf Web ohne

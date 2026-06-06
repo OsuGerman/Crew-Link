@@ -15,9 +15,11 @@ class FakeAuthRepository implements AuthRepository {
   bool signUpWithEmailCalled = false;
   bool signInWithAppleCalled = false;
   bool signOutCalled = false;
+  bool deleteAccountCalled = false;
 
   Object? emailSignInError;
   Object? appleSignInError;
+  Object? deleteAccountError;
 
   @override
   Future<UserCredential> signInWithEmailAndPassword(
@@ -49,6 +51,12 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {
     signOutCalled = true;
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    deleteAccountCalled = true;
+    if (deleteAccountError != null) throw deleteAccountError!;
   }
 }
 
@@ -164,6 +172,33 @@ void main() {
         container.read(authNotifierProvider),
         const AuthState(),
       );
+    });
+
+    test('deleteAccount — delegates to repository and returns to idle state',
+        () async {
+      final repo = FakeAuthRepository();
+      final container = _makeContainer(repo);
+      addTearDown(container.dispose);
+
+      await container.read(authNotifierProvider.notifier).deleteAccount();
+
+      expect(repo.deleteAccountCalled, isTrue);
+      expect(container.read(authNotifierProvider), const AuthState());
+    });
+
+    test('deleteAccount — falls back to signOut when Firebase delete fails',
+        () async {
+      final repo = FakeAuthRepository()
+        ..deleteAccountError = Exception('requires-recent-login');
+      final container = _makeContainer(repo);
+      addTearDown(container.dispose);
+
+      await container.read(authNotifierProvider.notifier).deleteAccount();
+
+      expect(repo.deleteAccountCalled, isTrue);
+      // Firebase delete failed → we still sign out so the local session ends.
+      expect(repo.signOutCalled, isTrue);
+      expect(container.read(authNotifierProvider), const AuthState());
     });
   });
 }

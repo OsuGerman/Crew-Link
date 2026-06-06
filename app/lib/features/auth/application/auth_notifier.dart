@@ -90,6 +90,23 @@ class AuthNotifier extends Notifier<AuthState> {
       state = AuthState(errorMessage: e.toString());
     }
   }
+
+  /// Deletes the Firebase account. Server-side data is removed separately (REST)
+  /// before this runs. If Firebase rejects the delete (e.g. a stale session) we
+  /// still sign out so the local session ends — the user is logged out either
+  /// way and their server data is already gone.
+  Future<void> deleteAccount() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await _repo.deleteAccount();
+      state = const AuthState();
+    } catch (e, st) {
+      appLog.e('AuthNotifier.deleteAccount', error: e, stackTrace: st);
+      unawaited(ObservabilityBootstrap.build().reportError(e, st));
+      await _repo.signOut();
+      state = const AuthState();
+    }
+  }
 }
 
 final authNotifierProvider =
