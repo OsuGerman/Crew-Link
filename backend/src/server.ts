@@ -83,6 +83,22 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
       ? createFirebaseTokenVerifier(options.env.FIREBASE_PROJECT_ID)
       : devTokenVerifier);
 
+  // The prod fail-fast above only fires for NODE_ENV='production'. A hosted
+  // server with NODE_ENV unset (defaults to 'development') and no
+  // FIREBASE_PROJECT_ID would silently accept ANY bearer token. Warn loudly on
+  // every non-test deployment so a misconfiguration is visible in the logs.
+  if (
+    options.verifyToken === undefined &&
+    options.env.FIREBASE_PROJECT_ID === undefined &&
+    options.env.NODE_ENV !== 'test'
+  ) {
+    app.log.warn(
+      'SECURITY: FIREBASE_PROJECT_ID is not set — using the INSECURE dev token ' +
+        'verifier (ANY bearer token is accepted as a user id). Set ' +
+        'FIREBASE_PROJECT_ID for every hosted/non-local deployment.',
+    );
+  }
+
   // DB is created first: both the gateway's member resolver and the route auth
   // hook need it. Routes that need persistence stay gated behind DATABASE_URL
   // so tests that only touch health/gateway keep running without one.

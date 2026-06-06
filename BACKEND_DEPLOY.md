@@ -13,11 +13,12 @@ funktionieren. Geht weitgehend über **Gratis-Stufen**.
 | LiveKit (PTT) | **LiveKit Cloud** | `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` |
 | Backend-Server | **Render** (oder Railway/Fly) | öffentliche `https://…`-URL |
 
-> ⚠️ **Auth-Hinweis:** Der Backend-Auth ist aktuell noch ein Dev-Stub (Bearer-Token
-> wird ungeprüft als User-ID übernommen). Bevor App + Backend wirklich konsistent
-> zusammenspielen, kommt **Phase 2b**: echte Firebase-ID-Token-Verifizierung +
-> stabile User-ID (Firebase-UID). Bis dahin ist der Stack zwar lauffähig, aber die
-> Nutzer-Zuordnung noch nicht korrekt.
+> 🔐 **Auth:** Das Backend verifiziert echte Firebase-ID-Token (Projekt
+> `crew-link-3c852`) und nutzt die Firebase-UID als stabile User-/Member-ID.
+> **Produktion MUSS `FIREBASE_PROJECT_ID` setzen** (idealerweise auch
+> `NODE_ENV=production`) — sonst fällt der Server auf den unsicheren Dev-Verifier
+> zurück, der jedes Bearer-Token als gültige Identität akzeptiert. Startet der
+> Server ohne `FIREBASE_PROJECT_ID`, warnt der Log laut.
 
 ---
 
@@ -63,6 +64,8 @@ Das legt Schema (users, vehicles, convoys, geo) an und aktiviert PostGIS.
    wird genutzt) · **Health Check Path:** `/health`.
 3. **Environment** setzen:
    ```
+   NODE_ENV = production
+   FIREBASE_PROJECT_ID = crew-link-3c852
    DATABASE_URL = <Supabase-URL>
    LIVEKIT_URL = wss://…
    LIVEKIT_API_KEY = …
@@ -71,6 +74,7 @@ Das legt Schema (users, vehicles, convoys, geo) an und aktiviert PostGIS.
    REDIS_URL = rediss://…
    ```
    (`PORT`/`HOST` setzt Render selbst; der Server liest `PORT`.)
+   **`FIREBASE_PROJECT_ID` ist Pflicht** — ohne läuft der unsichere Dev-Verifier.
 4. Deploy. Danach hast du eine URL wie `https://crew-link-backend.onrender.com`.
 
 > Render-Gratis-Stufe schläft bei Inaktivität ein → erster Request nach Pause ist
@@ -96,6 +100,6 @@ Den CI-APK-Workflow erweitere ich so, dass er diese URL als Eingabe annimmt.
 1. Supabase + LiveKit anlegen, URLs/Keys sammeln.
 2. `npm run db:migrate` lokal gegen die Supabase-URL.
 3. Backend auf Render deployen (Env-Vars setzen).
-4. Mir die Backend-URL geben → ich baue eine App mit den `--dart-define`s und du
-   testest Konvoi/GPS/PTT.
-5. **Phase 2b** (mache ich): echte Firebase-Token-Verifizierung im Backend.
+4. App mit den `--dart-define`s bauen (der Android-APK-Workflow nimmt `api_url`/
+   `ws_url` als Eingaben) und Konvoi/GPS/PTT testen. Echte Firebase-Token-
+   Verifizierung ist im Backend bereits aktiv (`FIREBASE_PROJECT_ID` setzen).
