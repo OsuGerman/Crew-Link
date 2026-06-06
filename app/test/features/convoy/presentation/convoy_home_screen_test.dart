@@ -310,6 +310,8 @@ void main() {
       await tester.pumpWidget(_app(client));
       await _doCreate(tester);
 
+      await tester.tap(find.byKey(const ValueKey('overflow-menu')));
+      await _settle(tester);
       expect(find.byKey(const ValueKey('open-map')), findsOneWidget);
     });
 
@@ -317,6 +319,8 @@ void main() {
       await tester.pumpWidget(
         _app(_client((req) => http.Response('{}', 200))),
       );
+      await tester.tap(find.byKey(const ValueKey('overflow-menu')));
+      await _settle(tester);
       expect(find.byKey(const ValueKey('open-map')), findsNothing);
     });
 

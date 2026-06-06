@@ -161,11 +161,10 @@ void main() {
         (tester) async {
       await tester.pumpWidget(_app());
       await _enterActiveConvoy(tester);
-      expect(find.byKey(const ValueKey('open-vehicle-profile')), findsOneWidget);
-
-      await tester.tap(find.byKey(const ValueKey('toggle-driver-mode')));
+      await tester.tap(find.byKey(const ValueKey('overflow-menu')));
       await _settle(tester);
-      expect(find.byKey(const ValueKey('open-vehicle-profile')), findsNothing);
+      expect(
+          find.byKey(const ValueKey('open-vehicle-profile')), findsOneWidget);
     });
 
     testWidgets('big driver leave button returns to lobby', (tester) async {

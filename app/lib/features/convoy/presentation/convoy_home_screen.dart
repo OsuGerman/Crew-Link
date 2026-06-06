@@ -90,17 +90,6 @@ class ConvoyHomeScreen extends ConsumerWidget {
             ),
           if (convoy != null)
             IconButton(
-              key: const ValueKey('open-map'),
-              tooltip: 'Karte',
-              icon: const Icon(Icons.map_outlined),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ConvoyMapScreen(),
-                ),
-              ),
-            ),
-          if (convoy != null)
-            IconButton(
               key: const ValueKey('toggle-driver-mode'),
               tooltip: driverMode ? 'Driver-Mode aus' : 'Driver-Mode an',
               icon: Icon(
@@ -115,22 +104,23 @@ class ConvoyHomeScreen extends ConsumerWidget {
                   .read(driverModeProvider.notifier)
                   .state = !driverMode,
             ),
-          if (!driverMode)
-            IconButton(
-              key: const ValueKey('open-vehicle-profile'),
-              tooltip: 'Mein Fahrzeug',
-              icon: const Icon(Icons.garage_outlined),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const VehicleProfileScreen(),
-                ),
-              ),
-            ),
           PopupMenuButton<String>(
             key: const ValueKey('overflow-menu'),
             tooltip: 'Mehr',
             onSelected: (value) {
               switch (value) {
+                case 'map':
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ConvoyMapScreen(),
+                    ),
+                  );
+                case 'vehicle':
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const VehicleProfileScreen(),
+                    ),
+                  );
                 case 'fuel':
                   showModalBottomSheet<void>(
                     context: context,
@@ -151,7 +141,29 @@ class ConvoyHomeScreen extends ConsumerWidget {
               }
             },
             itemBuilder: (context) => [
-              if (convoy != null)
+              if (convoy != null) ...[
+                const PopupMenuItem(
+                  key: ValueKey('open-map'),
+                  value: 'map',
+                  child: Row(
+                    children: [
+                      Icon(Icons.map_outlined),
+                      SizedBox(width: 12),
+                      Text('Karte'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  key: ValueKey('open-vehicle-profile'),
+                  value: 'vehicle',
+                  child: Row(
+                    children: [
+                      Icon(Icons.garage_outlined),
+                      SizedBox(width: 12),
+                      Text('Mein Fahrzeug'),
+                    ],
+                  ),
+                ),
                 const PopupMenuItem(
                   value: 'fuel',
                   child: Row(
@@ -162,6 +174,7 @@ class ConvoyHomeScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+              ],
               const PopupMenuItem(
                 value: 'beta',
                 child: Row(
