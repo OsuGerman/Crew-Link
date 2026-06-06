@@ -38,6 +38,20 @@ import 'route_sheet.dart';
 /// (the first request after idle can take ~30s).
 final _convoyBusyProvider = StateProvider<bool>((ref) => false);
 
+/// Maps a convoy API failure to a short, user-facing German message instead of
+/// dumping the raw exception — e.g. a wrong invite code becomes a clean warning
+/// rather than "Fehler: ConvoyApiException(404) …".
+String friendlyConvoyError(Object error) {
+  if (error is ConvoyApiException) {
+    return switch (error.statusCode) {
+      404 => 'Konvoi-Code nicht gefunden. Bitte prüfe den Code.',
+      401 || 403 => 'Anmeldung abgelaufen. Bitte neu anmelden.',
+      _ => 'Konvoi-Aktion fehlgeschlagen. Bitte erneut versuchen.',
+    };
+  }
+  return 'Etwas ist schiefgelaufen. Bitte erneut versuchen.';
+}
+
 class ConvoyHomeScreen extends ConsumerWidget {
   const ConvoyHomeScreen({super.key});
 
@@ -300,7 +314,7 @@ class ConvoyHomeScreen extends ConsumerWidget {
       ref.read(currentConvoyProvider.notifier).state = null;
     } catch (e) {
       if (context.mounted) {
-        messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+        messenger.showSnackBar(SnackBar(content: Text(friendlyConvoyError(e))));
       }
     }
   }
@@ -323,8 +337,14 @@ class ConvoyHomeScreen extends ConsumerWidget {
       // Kontextbezogen (nicht beim App-Start) hochstufen; Fehler dürfen den
       // Beitritt nicht abbrechen, daher unawaited + intern gekapselt.
       unawaited(_escalateLocationPermission());
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Fehler: $e')));
+    } catch (e, st) {
+      // 404 (falscher Code) / 401 (Token abgelaufen) sind Nutzer-/Auth-Fehler —
+      // nur warnen. Nur echte, unerwartete Fehler melden (Observability-Regel).
+      if (e is! ConvoyApiException || e.statusCode >= 500) {
+        appLog.e('ConvoyHomeScreen._runApi', error: e, stackTrace: st);
+        unawaited(ObservabilityBootstrap.build().reportError(e, st));
+      }
+      messenger.showSnackBar(SnackBar(content: Text(friendlyConvoyError(e))));
     } finally {
       ref.read(_convoyBusyProvider.notifier).state = false;
     }

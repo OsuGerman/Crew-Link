@@ -212,7 +212,7 @@ void main() {
       await tester.tap(find.text('Beitreten'));
       await _settle(tester);
 
-      expect(find.textContaining('Fehler'), findsOneWidget);
+      expect(find.textContaining('fehlgeschlagen'), findsOneWidget);
       expect(find.text('Neuen Konvoi starten'), findsOneWidget);
     });
 
@@ -264,7 +264,7 @@ void main() {
       await tester.tap(find.text('Verlassen'));
       await _settle(tester);
 
-      expect(find.textContaining('Fehler'), findsOneWidget);
+      expect(find.textContaining('fehlgeschlagen'), findsOneWidget);
       expect(find.text('Neuen Konvoi starten'), findsNothing);
     });
 

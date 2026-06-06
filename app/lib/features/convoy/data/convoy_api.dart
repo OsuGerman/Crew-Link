@@ -65,7 +65,7 @@ class ConvoyApi {
       headers: {'Authorization': 'Bearer $authToken'},
     );
     if (response.statusCode >= 400) {
-      throw _ConvoyApiException(response.statusCode, response.body);
+      throw ConvoyApiException(response.statusCode, response.body);
     }
   }
 
@@ -77,7 +77,7 @@ class ConvoyApi {
       headers: {'Authorization': 'Bearer $authToken'},
     );
     if (response.statusCode >= 400) {
-      throw _ConvoyApiException(response.statusCode, response.body);
+      throw ConvoyApiException(response.statusCode, response.body);
     }
   }
 
@@ -88,15 +88,15 @@ class ConvoyApi {
 
   Convoy _parseConvoy(http.Response response) {
     if (response.statusCode >= 400) {
-      throw _ConvoyApiException(response.statusCode, response.body);
+      throw ConvoyApiException(response.statusCode, response.body);
     }
     final decoded = (jsonDecode(response.body) as Map).cast<String, Object?>();
     return Convoy.fromJson(decoded);
   }
 }
 
-class _ConvoyApiException implements Exception {
-  _ConvoyApiException(this.statusCode, this.body);
+class ConvoyApiException implements Exception {
+  ConvoyApiException(this.statusCode, this.body);
   final int statusCode;
   final String body;
 
