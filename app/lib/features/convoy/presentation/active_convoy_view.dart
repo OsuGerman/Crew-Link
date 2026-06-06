@@ -71,6 +71,11 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
     // WebRTC/Firebase-Database PTT, FCM notifications) that throw on web. The
     // web build is for testing the auth/convoy/GPS flow — skip them there.
     if (!kIsWeb) {
+      // Publishes THIS device's GPS to the convoy WebSocket so everyone else
+      // sees it. Without this watch the publisher never starts → every member
+      // shows up as "kein GPS-Signal" to every other member (each only ever
+      // saw their own local stream).
+      ref.watch(locationPublisherProvider);
       ref.watch(convoyRosterRefreshProvider);
       ref.watch(breachNotificationWatcherProvider);
       ref.watch(convoySplitWatcherProvider);
