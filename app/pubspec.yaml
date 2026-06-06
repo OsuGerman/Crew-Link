@@ -56,6 +56,15 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   stream_channel: ^2.1.0
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
+
+# App-Icon aus dem orangenen Link-Squircle generieren:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  remove_alpha_ios: true
