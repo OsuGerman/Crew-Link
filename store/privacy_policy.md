@@ -15,6 +15,10 @@ Adrian Mirwaldt, adrian.mirwaldt21@gmail.com
 | Apple User ID (anonymisiert) | Konvoi-Mitgliedschaft, Anti-Impersonation | Bis zur Account-Löschung |
 | Fahrzeugprofil (Modell, Baujahr, Mods) | Anzeige im Konvoi für andere Mitglieder | Bis zur manuellen Löschung durch den Nutzer |
 
+## Rechtsgrundlagen
+
+GPS, Audio, Fahrzeugprofil und die Apple-/Firebase-Nutzer-ID verarbeiten wir zur Erfüllung des Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO) — sie sind für die Konvoi-Funktion erforderlich. Firebase Authentication speichert dafür E-Mail und ID-Token. Diagnose- und Analyse-Daten (Firebase Analytics, Crashlytics, Sentry, PostHog) verarbeiten wir ausschließlich auf Grundlage deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO).
+
 ## Was wir NICHT erheben
 
 - Keine Werbung und kein Werbe-Tracking, keine Werbe-Identifier
@@ -42,7 +46,7 @@ Das Mikrofon wird ausschließlich für Push-to-Talk aktiviert, solange du die PT
 
 ## Betroffenenrechte (DSGVO Art. 15–22)
 
-Du hast das Recht auf Auskunft, Berichtigung, Löschung und Datenübertragbarkeit. Kontakt: adrian.mirwaldt21@gmail.com
+Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung und Datenübertragbarkeit sowie das Recht, dich bei einer Datenschutz-Aufsichtsbehörde zu beschweren. Kontakt: adrian.mirwaldt21@gmail.com
 
 ## Cookies / lokaler Speicher
 

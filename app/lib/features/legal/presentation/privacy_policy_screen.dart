@@ -60,6 +60,19 @@ class PrivacyPolicyScreen extends ConsumerWidget {
                 'Konvoi-Mitglieder übertragen.',
           ),
           const _Section(
+            title: 'Rechtsgrundlagen',
+            body:
+                'Standortdaten, Audio (Push-to-Talk), Fahrzeugprofile und die '
+                'Apple-/Firebase-Nutzer-ID verarbeiten wir zur Erfüllung des '
+                'Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO) — sie sind für '
+                'die Konvoi-Funktion erforderlich. Firebase Authentication '
+                'speichert dafür E-Mail und ID-Token.\n\n'
+                'Diagnose- und Analyse-Daten (Firebase Analytics, Crashlytics, '
+                'Sentry, PostHog) verarbeiten wir ausschließlich auf Grundlage '
+                'deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die du '
+                'jederzeit oben widerrufen kannst.',
+          ),
+          const _Section(
             title: 'Weitergabe an Dritte / Auftragsverarbeiter',
             body:
                 'Deine Daten werden nicht verkauft oder für Werbung genutzt. '
@@ -85,9 +98,11 @@ class PrivacyPolicyScreen extends ConsumerWidget {
           const _Section(
             title: 'Deine Rechte',
             body:
-                'Du hast das Recht auf Auskunft, Berichtigung, Löschung und '
-                'Einschränkung der Verarbeitung. Für Anfragen wende dich an '
-                'adrian.mirwaldt21@gmail.com.\n\n'
+                'Du hast das Recht auf Auskunft, Berichtigung, Löschung, '
+                'Einschränkung der Verarbeitung und Datenübertragbarkeit. Für '
+                'Anfragen wende dich an adrian.mirwaldt21@gmail.com. Außerdem '
+                'kannst du dich bei einer Datenschutz-Aufsichtsbehörde '
+                'beschweren.\n\n'
                 'Du kannst die App-Berechtigungen (Standort, Mikrofon) jederzeit '
                 'in den iOS-Einstellungen widerrufen.',
           ),
