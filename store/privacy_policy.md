@@ -30,6 +30,8 @@ Zur Stabilität und Verbesserung der App setzen wir ein:
 
 Es werden keine Profile zu Werbezwecken gebildet. Auf Anfrage löschen wir deine zugehörigen Daten (Kontakt unten).
 
+Diese Diagnose- und Analyse-Funktionen sind **standardmäßig deaktiviert** und werden erst nach deiner ausdrücklichen Einwilligung (Opt-in beim ersten Start) aktiviert. Du kannst die Einwilligung jederzeit in der App unter „Datenschutz" widerrufen.
+
 ## Standortdaten – Details
 
 Standortdaten werden ausschließlich in Echtzeit an Konvoi-Mitglieder übertragen, denen du aktiv beigetreten bist. Sie werden nicht protokolliert, nicht gespeichert und nicht an Dritte weitergegeben. Hintergrund-Standort wird nur während einer aktiven Konvoi-Session genutzt.
