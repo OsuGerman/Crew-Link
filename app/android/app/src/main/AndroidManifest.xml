@@ -1,13 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Location: foreground while convoying. ACCESS_BACKGROUND_LOCATION
-         is requested separately at runtime via the standard two-step
-         flow on Android 10+; we will only ask for it after the user
-         has granted foreground access. -->
+    <!-- Location: foreground only. Continuous sharing while the app is
+         backgrounded during a convoy runs through the geolocator FOREGROUND
+         SERVICE below (with an ongoing notification) — so we do NOT declare
+         ACCESS_BACKGROUND_LOCATION. That permission would trigger Play's
+         stricter background-location review without changing behaviour, since
+         the foreground service already keeps the position stream alive. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
 
     <!-- Foreground service for continuous GPS broadcast while the app
          is backgrounded but the user is actively in a convoy. -->
