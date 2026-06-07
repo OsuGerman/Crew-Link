@@ -8,7 +8,6 @@ import 'package:crew_link/core/branding/crew_link_logo.dart';
 import 'package:crew_link/core/branding/crew_link_wordmark.dart';
 import 'package:crew_link/core/theme/app_theme.dart';
 import 'package:crew_link/features/auth/application/auth_notifier.dart';
-import 'package:crew_link/features/onboarding/presentation/onboarding_widgets.dart';
 
 /// Welcome-Screen (Design.pdf Frame 1).
 ///
@@ -180,8 +179,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: AppSpacing.xl),
-              const Center(child: DotIndicator(count: 3, current: 0)),
             ],
           ),
         ),
