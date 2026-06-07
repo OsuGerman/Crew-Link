@@ -47,11 +47,6 @@ final memberMarkersProvider = Provider.autoDispose<List<MemberMarker>>((ref) {
   ];
 });
 
-/// Whether the active convoy view shows the live street map (true) or the
-/// proximity radar (false). User-toggleable; defaults to the map. Widget tests
-/// override this to false so they don't instantiate the native MapLibre view.
-final mapViewEnabledProvider = StateProvider<bool>((ref) => true);
-
 /// Viewport that auto-fits all current convoy member positions.
 /// Falls back to a default city-centre view when no members are tracked.
 final liveViewportProvider = Provider.autoDispose<MapViewport>((ref) {

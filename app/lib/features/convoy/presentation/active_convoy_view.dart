@@ -9,24 +9,26 @@ import '../../../core/location/location_permission_service.dart';
 import '../../../core/models/convoy.dart';
 import '../../../core/models/gps_update.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../maps/application/maps_providers.dart';
 import '../../maps/presentation/convoy_map_widget.dart';
 import '../../push_to_talk/application/ptt_providers.dart';
 import '../application/breach_notification_watcher.dart';
 import '../application/convoy_providers.dart';
 import '../application/convoy_split_watcher.dart';
 import '../application/lost_connection_watcher.dart';
+import '../application/waypoint_providers.dart';
 import '../domain/convoy_split_event.dart';
 import '../domain/proximity_warning.dart';
 import 'active_convoy_action_bar.dart';
 import 'connection_status_banner.dart';
 import 'convoy_member_list.dart';
-import 'convoy_radar_view.dart';
 import 'convoy_status_header.dart';
 import 'gps_readiness_banner.dart';
 import 'hazard_banner_strip.dart';
+import 'leader_route_cta.dart';
 import 'lost_connection_banner.dart';
+import 'members_sheet_pill.dart';
 import 'quick_actions_row.dart';
+import 'route_sheet.dart';
 import 'sos_hold_button.dart';
 import 'waypoint_banner.dart';
 
@@ -34,8 +36,9 @@ import 'waypoint_banner.dart';
 /// Layout (von oben nach unten):
 ///   • Status-Header (Konvoi-Name + Live-Dot + Code-Pill)
 ///   • Banner-Stack (Connection, LostConnection, Proximity, Waypoint)
-///   • Expanded Radar (nimmt den verfügbaren Vertikal-Platz)
-///   • Member-Liste kompakt
+///   • Leader-Route-CTA (nur Leader, solange noch kein Ziel gesetzt ist)
+///   • Expanded Live-Karte (nimmt den verfügbaren Vertikal-Platz)
+///   • Mitglieder-Pille (öffnet die volle Liste in einem Bottom-Sheet)
 ///   • Fixed Bottom-Bar (Member-Pill · großer PTT · Leave-Icon)
 class ActiveConvoyView extends ConsumerStatefulWidget {
   const ActiveConvoyView({
@@ -105,7 +108,8 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
     final positions = ref.watch(livePositionsProvider);
     final snapshot = positions.valueOrNull ?? const <String, GpsUpdate>{};
     final selfId = ref.watch(selfMemberIdProvider);
-    final showMap = ref.watch(mapViewEnabledProvider);
+    final tourIsEmpty = ref.watch(tourProvider).isEmpty;
+    final isLeader = ref.watch(selfIsLeaderProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -122,29 +126,18 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
         const SizedBox(height: AppSpacing.md),
         const HazardBannerStrip(),
         const QuickActionBanner(),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          child: _MapRadarToggle(
-            showMap: showMap,
-            onChanged: (v) =>
-                ref.read(mapViewEnabledProvider.notifier).state = v,
-          ),
-        ),
+        // Leader-only call-to-action: the road route is only drawn once a
+        // destination is set, but that entry is otherwise hidden behind a small
+        // app-bar flag icon. Surface it prominently while the tour is empty.
+        if (isLeader && tourIsEmpty)
+          LeaderRouteCta(onPlanRoute: () => _openRouteSheet(context)),
+        // Full-size live map — the main view. The pins already show everyone,
+        // so the member list moves into a tap-away sheet (members pill below).
+        const Expanded(child: ConvoyMapWidget()),
         const SizedBox(height: AppSpacing.sm),
-        Expanded(
-          child: showMap
-              ? const ConvoyMapWidget()
-              : ConvoyRadarView(
-                  selfMemberId: selfId,
-                  positions: snapshot,
-                  thresholdMeters: convoy.proximityWarningMeters,
-                ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        ConvoyMemberList(
+        MembersSheetPill(
           convoy: convoy,
-          positions: snapshot,
-          selfMemberId: selfId,
+          onTap: () => _openMembersSheet(context, convoy, snapshot, selfId),
         ),
         const SizedBox(height: AppSpacing.sm),
         const QuickActionsRow(),
@@ -165,6 +158,38 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
           onLeave: widget.onLeave,
         ),
       ],
+    );
+  }
+
+  void _openRouteSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const RouteSheet(),
+    );
+  }
+
+  void _openMembersSheet(
+    BuildContext context,
+    Convoy convoy,
+    Map<String, GpsUpdate> positions,
+    String selfId,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg,
+          ),
+          child: ConvoyMemberList(
+            convoy: convoy,
+            positions: positions,
+            selfMemberId: selfId,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -271,42 +296,6 @@ class _ConvoySplitDialog extends StatelessWidget {
           child: const Text('Verstanden'),
         ),
       ],
-    );
-  }
-}
-
-/// Compact map ⇄ radar switch above the main convoy view.
-class _MapRadarToggle extends StatelessWidget {
-  const _MapRadarToggle({required this.showMap, required this.onChanged});
-
-  final bool showMap;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: SegmentedButton<bool>(
-        showSelectedIcon: false,
-        style: const ButtonStyle(
-          visualDensity: VisualDensity.compact,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        segments: const [
-          ButtonSegment(
-            value: true,
-            label: Text('Karte'),
-            icon: Icon(Icons.map_outlined, size: 18),
-          ),
-          ButtonSegment(
-            value: false,
-            label: Text('Radar'),
-            icon: Icon(Icons.radar, size: 18),
-          ),
-        ],
-        selected: {showMap},
-        onSelectionChanged: (s) => onChanged(s.first),
-      ),
     );
   }
 }

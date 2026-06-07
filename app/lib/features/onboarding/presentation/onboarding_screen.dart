@@ -43,11 +43,21 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
+/// Swipe wird ausgelöst, sobald die horizontale Drag-Strecke diesen Wert
+/// überschreitet — ein ruhiges Wischen ohne hohe Geschwindigkeit reicht so.
+const double _swipeDistanceThreshold = 60;
+
+/// Alternativ genügt eine schnelle Wisch-Geste (Fling) ab dieser Velocity.
+const double _swipeVelocityThreshold = 150;
+
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late int _step;
   bool _signing = false;
   String? _signingError;
   bool _completing = false;
+  // Aufsummierte horizontale Drag-Strecke der laufenden Geste; pro Drag
+  // zurückgesetzt, damit auch ein langsamer Wisch (geringe Velocity) zieht.
+  double _dragDx = 0;
   final _nameController = TextEditingController();
 
   @override
@@ -185,11 +195,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
+                onHorizontalDragStart: (_) => _dragDx = 0,
+                onHorizontalDragUpdate: (details) =>
+                    _dragDx += details.delta.dx,
                 onHorizontalDragEnd: (details) {
+                  // Trigger on either a clear horizontal distance (calm swipe)
+                  // OR a fast fling — a slow swipe alone never reached the old
+                  // velocity-only threshold, so the 3 dots looked dead.
                   final v = details.primaryVelocity ?? 0;
-                  if (v < -200) {
+                  final dx = _dragDx;
+                  _dragDx = 0;
+                  final forward = dx < -_swipeDistanceThreshold ||
+                      v < -_swipeVelocityThreshold;
+                  final back = dx > _swipeDistanceThreshold ||
+                      v > _swipeVelocityThreshold;
+                  if (forward) {
                     _swipeForward();
-                  } else if (v > 200) {
+                  } else if (back) {
                     _swipeBack();
                   }
                 },

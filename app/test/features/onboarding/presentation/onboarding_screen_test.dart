@@ -139,6 +139,53 @@ void main() {
       expect(find.byKey(const ValueKey('onboarding-continue')), findsOneWidget);
     });
 
+    testWidgets('calm drag (no fling) on welcome step still advances',
+        (tester) async {
+      await tester.pumpWidget(_wrap(container));
+      await tester.pump();
+
+      // A plain drag has near-zero release velocity — it must trigger on the
+      // accumulated horizontal distance alone, not just on a fast fling.
+      await tester.drag(
+          find.text('Willkommen bei Crew Link'), const Offset(-150, 0));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byKey(const ValueKey('onboarding-profile-name')),
+          findsOneWidget);
+    });
+
+    testWidgets('calm drag right on profile step goes back to welcome',
+        (tester) async {
+      await tester.pumpWidget(_wrap(container, initialStep: 1));
+      await tester.pump();
+
+      await tester.drag(
+          find.byKey(const ValueKey('onboarding-page-profile')),
+          const Offset(150, 0));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byKey(const ValueKey('onboarding-continue')), findsOneWidget);
+    });
+
+    testWidgets('tiny drag below the distance threshold does not advance',
+        (tester) async {
+      await tester.pumpWidget(_wrap(container));
+      await tester.pump();
+
+      // 30px < 60px threshold and no fling → stay on the welcome step.
+      await tester.drag(
+          find.text('Willkommen bei Crew Link'), const Offset(-30, 0));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(
+          find.byKey(const ValueKey('onboarding-continue')), findsOneWidget);
+      expect(find.byKey(const ValueKey('onboarding-profile-name')),
+          findsNothing);
+    });
+
     testWidgets('profile step shows name field and Weiter disabled when empty',
         (tester) async {
       await tester.pumpWidget(_wrap(container, initialStep: 1));

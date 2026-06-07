@@ -5,16 +5,16 @@ import '../../../core/geo/geo_distance.dart';
 import '../../../core/models/convoy.dart';
 import '../../../core/models/gps_update.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../maps/presentation/convoy_map_widget.dart';
 import '../../push_to_talk/presentation/ptt_button.dart';
 import '../application/convoy_providers.dart';
 import '../domain/proximity_warning.dart';
 import 'connection_status_banner.dart';
-import 'convoy_radar_view.dart';
 import 'sos_hold_button.dart';
 import 'waypoint_banner.dart';
 
 /// Driver-Mode (Design.pdf Frame 8 "Glance-only Layout").
-/// Reduzierte Cognitive Load am Steuer: großer Radar, prominenter
+/// Reduzierte Cognitive Load am Steuer: große Live-Karte, prominenter
 /// Abstands-Card, Tabular-Ziffern, große Touch-Ziele.
 class DriverModeActiveView extends ConsumerWidget {
   const DriverModeActiveView({
@@ -43,14 +43,7 @@ class DriverModeActiveView extends ConsumerWidget {
         if (warning != null) const SizedBox(height: AppSpacing.md),
         const WaypointBanner(),
         const SizedBox(height: AppSpacing.md),
-        Expanded(
-          child: ConvoyRadarView(
-            selfMemberId: selfMemberId,
-            positions: positions,
-            thresholdMeters: convoy.proximityWarningMeters,
-            maxHeight: double.infinity,
-          ),
-        ),
+        const Expanded(child: ConvoyMapWidget()),
         const SizedBox(height: AppSpacing.md),
         _DriverMembersSummary(
           convoy: convoy,

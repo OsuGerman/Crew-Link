@@ -26,12 +26,13 @@ Map<String, Object?> _fakeConvoyJson({
   String id = 'c1',
   String name = 'Trip',
   String invite = 'ABC123',
+  List<Object?>? members,
 }) {
   return {
     'id': id,
     'name': name,
     'inviteCode': invite,
-    'members': <Object?>[],
+    'members': members ?? <Object?>[],
     'proximityWarningMeters': 500,
     'createdAt': '2026-05-13T12:00:00Z',
   };
@@ -268,7 +269,7 @@ void main() {
       expect(find.text('Neuen Konvoi starten'), findsNothing);
     });
 
-    testWidgets('live members tile lists one row per active member',
+    testWidgets('members sheet lists one row per active member',
         (tester) async {
       final socket = FakeConvoySocketClient(convoyId: 'c1');
       final client = _client(
@@ -295,11 +296,51 @@ void main() {
       ));
       await _settle(tester);
 
+      // The map is now full-size; the member list lives one tap away in a sheet.
+      final pill = find.byKey(const ValueKey('open-members-sheet'));
+      await tester.ensureVisible(pill);
+      await _settle(tester);
+      await tester.tap(pill);
+      await _settle(tester);
+
+      expect(find.byKey(const ValueKey('live-members-tile')), findsOneWidget);
       expect(find.byKey(const ValueKey('member-row-self')), findsOneWidget);
       expect(find.byKey(const ValueKey('member-row-buddy')), findsOneWidget);
       expect(find.text('Du'), findsWidgets);
       // buddy is ~5km north; distance pill shows km (e.g. '5.x km').
       expect(find.textContaining('km'), findsWidgets);
+    });
+
+    testWidgets('members pill shows live/total counts and opens the sheet',
+        (tester) async {
+      final socket = FakeConvoySocketClient(convoyId: 'c1');
+      final client = _client(
+        (req) => http.Response(jsonEncode(_fakeConvoyJson()), 200),
+      );
+      await tester.pumpWidget(_app(client, socket: socket));
+      await _doCreate(tester);
+
+      socket.publishLocation(GpsUpdate(
+        memberId: 'self',
+        latitude: 52.5200,
+        longitude: 13.4060,
+        headingDegrees: 0,
+        speedMps: 12,
+        timestamp: DateTime.utc(2026, 5, 13, 12, 0, 5),
+      ));
+      await _settle(tester);
+
+      final pill = find.byKey(const ValueKey('open-members-sheet'));
+      expect(pill, findsOneWidget);
+      expect(
+        find.descendant(
+          of: pill,
+          matching: find.textContaining('live'),
+        ),
+        findsOneWidget,
+      );
+      // The full member list is NOT inline (map stays full-size) until tapped.
+      expect(find.byKey(const ValueKey('live-members-tile')), findsNothing);
     });
 
     testWidgets('map button appears in AppBar when convoy is active',
@@ -370,6 +411,46 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    testWidgets(
+        'leader route CTA shows for a leader with no tour and opens RouteSheet',
+        (tester) async {
+      final client = _client(
+        (req) => http.Response(
+          jsonEncode(_fakeConvoyJson(members: [
+            {'id': 'self', 'displayName': 'Me', 'isLeader': true},
+          ])),
+          200,
+        ),
+      );
+      await tester.pumpWidget(_app(client));
+      await _doCreate(tester);
+
+      final cta = find.byKey(const ValueKey('leader-route-cta'));
+      expect(cta, findsOneWidget);
+
+      await tester.tap(cta);
+      await _settle(tester);
+      // RouteSheet renders its ROUTE header.
+      expect(find.text('ROUTE'), findsOneWidget);
+    });
+
+    testWidgets('leader route CTA is absent for a non-leader member',
+        (tester) async {
+      final client = _client(
+        (req) => http.Response(
+          jsonEncode(_fakeConvoyJson(members: [
+            {'id': 'someone-else', 'displayName': 'Lead', 'isLeader': true},
+            {'id': 'self', 'displayName': 'Me', 'isLeader': false},
+          ])),
+          200,
+        ),
+      );
+      await tester.pumpWidget(_app(client));
+      await _doCreate(tester);
+
+      expect(find.byKey(const ValueKey('leader-route-cta')), findsNothing);
     });
   });
 }

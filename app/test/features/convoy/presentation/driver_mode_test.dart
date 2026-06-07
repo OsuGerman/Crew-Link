@@ -143,8 +143,8 @@ void main() {
       await tester.pumpWidget(_app());
       await _enterActiveConvoy(tester);
 
-      // Normal view: live-members-tile present, driver-leave-button absent.
-      expect(find.byKey(const ValueKey('live-members-tile')), findsOneWidget);
+      // Normal view: members-sheet pill present, driver-leave-button absent.
+      expect(find.byKey(const ValueKey('open-members-sheet')), findsOneWidget);
       expect(find.byKey(const ValueKey('driver-leave-button')), findsNothing);
 
       await tester.tap(find.byKey(const ValueKey('toggle-driver-mode')));
@@ -154,7 +154,7 @@ void main() {
       expect(find.byKey(const ValueKey('driver-leave-button')), findsOneWidget);
       expect(
           find.byKey(const ValueKey('driver-members-summary')), findsOneWidget);
-      expect(find.byKey(const ValueKey('live-members-tile')), findsNothing);
+      expect(find.byKey(const ValueKey('open-members-sheet')), findsNothing);
     });
 
     testWidgets('vehicle-profile icon is hidden in driver-mode',
