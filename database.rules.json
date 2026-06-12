@@ -4,9 +4,24 @@
       "$convoyId": {
         "breaches": {
           ".read": "auth != null",
-          ".write": "auth != null",
           "$pairKey": {
-            ".validate": "newData.hasChildren(['distanceMeters', 'triggeredAt'])"
+            ".write": "auth != null && (newData.child('memberAId').val() === auth.uid || newData.child('memberBId').val() === auth.uid)",
+            ".validate": "newData.hasChildren(['memberAId', 'memberBId', 'distanceMeters', 'triggeredAt'])",
+            "memberAId": {
+              ".validate": "newData.isString()"
+            },
+            "memberBId": {
+              ".validate": "newData.isString()"
+            },
+            "distanceMeters": {
+              ".validate": "newData.isNumber()"
+            },
+            "triggeredAt": {
+              ".validate": "newData.isString() && newData.val().matches(/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T/)"
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         }
       }
@@ -14,7 +29,70 @@
     "ptt_sessions": {
       "$convoyId": {
         ".read": "auth != null",
-        ".write": "auth != null"
+        "$userId": {
+          "offer": {
+            ".write": "auth != null && auth.uid === $userId",
+            ".validate": "newData.hasChildren(['sdp', 'type'])",
+            "sdp": {
+              ".validate": "newData.isString()"
+            },
+            "type": {
+              ".validate": "newData.isString()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "ice": {
+            ".write": "auth != null && auth.uid === $userId",
+            "$candidateId": {
+              ".validate": "newData.hasChildren(['candidate'])",
+              "candidate": {
+                ".validate": "newData.isString()"
+              },
+              "sdpMid": {
+                ".validate": "newData.isString()"
+              },
+              "sdpMLineIndex": {
+                ".validate": "newData.isNumber()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "answer": {
+            ".write": "auth != null",
+            ".validate": "newData.hasChildren(['sdp', 'type'])",
+            "sdp": {
+              ".validate": "newData.isString()"
+            },
+            "type": {
+              ".validate": "newData.isString()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "answer_ice": {
+            ".write": "auth != null",
+            "$candidateId": {
+              ".validate": "newData.hasChildren(['candidate'])",
+              "candidate": {
+                ".validate": "newData.isString()"
+              },
+              "sdpMid": {
+                ".validate": "newData.isString()"
+              },
+              "sdpMLineIndex": {
+                ".validate": "newData.isNumber()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          }
+        }
       }
     },
     "$other": {

@@ -1,0 +1,40 @@
+# Deployt die RTDB-Security-Rules (database.rules.json) nach Firebase.
+#
+# Secret-Setup (einmalig, lokal):
+#   1. npm install -g firebase-tools
+#   2. firebase login:ci          -> oeffnet Browser, gibt am Ende einen Token aus
+#   3. Token als Repo-Secret FIREBASE_TOKEN hinterlegen:
+#      GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret
+#      (oder: gh secret set FIREBASE_TOKEN)
+#
+# Hinweis: firebase login:ci ist deprecated, funktioniert aber weiterhin.
+# Langfristige Alternative: Service-Account-JSON als Secret + GOOGLE_APPLICATION_CREDENTIALS.
+name: Firebase RTDB Rules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - database.rules.json
+      - firebase.json
+      - .github/workflows/firebase-rules.yml
+  workflow_dispatch:
+
+jobs:
+  deploy-rules:
+    name: Deploy database.rules.json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Deploy RTDB rules
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "::error::Secret FIREBASE_TOKEN fehlt. Mit 'firebase login:ci' erzeugen und als Repo-Secret hinterlegen (siehe Kommentar im Workflow)."
+            exit 1
+          fi
+          npx firebase-tools deploy --only database --project crew-link --token "$FIREBASE_TOKEN" --non-interactive
