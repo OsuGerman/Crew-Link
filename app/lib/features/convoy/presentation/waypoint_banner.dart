@@ -40,7 +40,10 @@ class WaypointBanner extends ConsumerWidget {
             ),
             decoration: BoxDecoration(
               color: AppColors.surfaceHigh,
-              border: Border.all(color: AppColors.orange, width: 1.2),
+              border: Border.all(
+                color: AppColors.surfaceOutline,
+                width: AppBorders.hairline,
+              ),
               borderRadius: BorderRadius.circular(AppRadii.card),
             ),
             child: Row(
@@ -49,8 +52,8 @@ class WaypointBanner extends ConsumerWidget {
                   width: 36,
                   height: 36,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.orange.withValues(alpha: 0.18),
+                  decoration: const BoxDecoration(
+                    color: AppAccents.orangeTint,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(

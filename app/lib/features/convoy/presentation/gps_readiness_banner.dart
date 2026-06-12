@@ -29,9 +29,12 @@ class GpsReadinessBanner extends StatelessWidget {
           AppSpacing.sm,
         ),
         decoration: BoxDecoration(
-          color: AppColors.orange.withValues(alpha: 0.14),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.orange),
+          border: Border.all(
+            color: AppColors.surfaceOutline,
+            width: AppBorders.hairline,
+          ),
         ),
         child: Row(
           children: [

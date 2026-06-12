@@ -25,9 +25,13 @@ class LobbyView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Spacer(),
-          // Hero-Logo (orange Kreis mit S-Kurve, Glow)
-          Center(
-            child: _LogoWithGlow(),
+          // Hero-Logo (orange Kreis mit S-Kurve) — flach, ohne Glow.
+          const Center(
+            child: SizedBox(
+              width: 132,
+              height: 132,
+              child: Center(child: CrewLinkLogo(size: 96)),
+            ),
           ),
           const SizedBox(height: AppSpacing.xl),
           Text(
@@ -55,28 +59,6 @@ class LobbyView extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxl),
         ],
       ),
-    );
-  }
-}
-
-class _LogoWithGlow extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 132,
-      height: 132,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.orange.withValues(alpha: 0.22),
-            blurRadius: 60,
-            spreadRadius: 6,
-          ),
-        ],
-      ),
-      child: const CrewLinkLogo(size: 96),
     );
   }
 }

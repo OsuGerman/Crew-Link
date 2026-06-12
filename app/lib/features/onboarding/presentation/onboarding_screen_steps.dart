@@ -108,69 +108,35 @@ extension _Steps on _OnboardingScreenState {
   }
 }
 
-/// Profile-Step Initial-Avatar mit langsamem Orange-Pulse — gibt dem
-/// statischen Bildschirm visuelles Leben und unterstreicht den Brand-Akzent.
-class _PulsingAvatar extends StatefulWidget {
+/// Profile-Step Initial-Avatar — ruhige, flache Fläche mit Haarlinie. Die
+/// Initiale bleibt orange als dezenter Identitäts-Akzent (kein Glow, kein Puls).
+class _PulsingAvatar extends StatelessWidget {
   const _PulsingAvatar({required this.initial});
   final String initial;
 
   @override
-  State<_PulsingAvatar> createState() => _PulsingAvatarState();
-}
-
-class _PulsingAvatarState extends State<_PulsingAvatar>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) {
-        final pulse = _ctrl.value;
-        return Container(
-          width: 96,
-          height: 96,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceHigh,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.orange, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.orange
-                    .withValues(alpha: 0.18 + 0.18 * pulse),
-                blurRadius: 40 + 24 * pulse,
-                spreadRadius: 2 + 6 * pulse,
-              ),
-            ],
+    return Container(
+      width: 96,
+      height: 96,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceHigh,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: AppColors.surfaceOutline,
+          width: AppBorders.hairline,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+            fontSize: 40,
+            fontWeight: FontWeight.w700,
+            color: AppColors.orange,
           ),
-          child: Center(
-            child: Text(
-              widget.initial,
-              style: const TextStyle(
-                fontSize: 40,
-                fontWeight: FontWeight.w700,
-                color: AppColors.orange,
-              ),
-            ),
-          ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

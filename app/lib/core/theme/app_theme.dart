@@ -39,6 +39,21 @@ abstract final class AppRadii {
   static const sheet = 24.0;
 }
 
+/// Linienstärken für das ruhige, flache System: durchgängig Haarlinien auf
+/// neutralen Flächen, statt kräftiger Orange-Rahmen. Eine etwas dickere Variante
+/// nur für aktiv/ausgewählte Elemente.
+abstract final class AppBorders {
+  static const hairline = 0.8;
+  static const selected = 1.4;
+}
+
+/// Dezenter Orange-Tint für kleine Akzent-Container (z. B. das Icon-Plättchen
+/// in einer CTA). Bewusst sehr schwach — Orange bleibt das Signal, nicht die
+/// Fläche.
+abstract final class AppAccents {
+  static const orangeTint = Color(0x1FFF6B2C); // ~12 % Orange
+}
+
 abstract final class AppSpacing {
   static const xs = 4.0;
   static const sm = 8.0;

@@ -28,9 +28,12 @@ class ConvoyInviteCta extends StatelessWidget {
               vertical: AppSpacing.md,
             ),
             decoration: BoxDecoration(
-              color: AppColors.orange.withValues(alpha: 0.12),
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(AppRadii.card),
-              border: Border.all(color: AppColors.orange, width: 1.2),
+              border: Border.all(
+                color: AppColors.surfaceOutline,
+                width: AppBorders.hairline,
+              ),
             ),
             child: Row(
               children: [
@@ -38,8 +41,8 @@ class ConvoyInviteCta extends StatelessWidget {
                   width: 38,
                   height: 38,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.orange.withValues(alpha: 0.2),
+                  decoration: const BoxDecoration(
+                    color: AppAccents.orangeTint,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -79,7 +82,7 @@ class ConvoyInviteCta extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 const Icon(
                   Icons.chevron_right_rounded,
-                  color: AppColors.orange,
+                  color: AppColors.textMuted,
                   size: 24,
                 ),
               ],

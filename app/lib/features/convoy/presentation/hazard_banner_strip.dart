@@ -155,7 +155,10 @@ class _HazardPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(AppRadii.pill),
-          border: Border.all(color: color, width: 1.2),
+          border: Border.all(
+            color: color.withValues(alpha: 0.5),
+            width: AppBorders.hairline,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

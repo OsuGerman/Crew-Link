@@ -138,7 +138,10 @@ class QuickActionBanner extends ConsumerWidget {
         decoration: BoxDecoration(
           color: m.color.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: m.color),
+          border: Border.all(
+            color: m.color.withValues(alpha: 0.5),
+            width: AppBorders.hairline,
+          ),
         ),
         child: Row(
           children: [

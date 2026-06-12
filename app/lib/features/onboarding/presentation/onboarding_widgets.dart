@@ -67,21 +67,11 @@ class _HeroLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    // Flach, ohne Orange-Glow — das Logo steht für sich.
+    return const SizedBox(
       width: 132,
       height: 132,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.orange.withValues(alpha: 0.22),
-            blurRadius: 60,
-            spreadRadius: 6,
-          ),
-        ],
-      ),
-      child: const CrewLinkLogo(size: 96),
+      child: Center(child: CrewLinkLogo(size: 96)),
     );
   }
 }
