@@ -9,6 +9,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'app/crew_link_app.dart';
 import 'core/firebase/firebase_options.dart';
+import 'core/firebase/firebase_providers.dart';
 import 'core/location/location_permission_service.dart';
 import 'core/models/gps_update.dart';
 import 'core/notifications/notification_service.dart';
@@ -144,6 +145,13 @@ Future<void> main() async {
         overrides: [
           authTokenProvider.overrideWith((ref) {
             return ref.watch(authIdTokenProvider).valueOrNull ?? '';
+          }),
+          // Realtime-Socket: pro (Re-)Connect einen FRISCHEN Token holen.
+          // getIdToken() erneuert abgelaufene Tokens transparent — kein
+          // 401-Loop mehr, wenn der Socket nach >1 h Fahrt reconnectet.
+          freshAuthTokenProvider.overrideWith((ref) {
+            final auth = ref.watch(firebaseAuthProvider);
+            return () async => await auth.currentUser?.getIdToken() ?? '';
           }),
           selfMemberIdProvider.overrideWith((ref) {
             return ref.watch(signedInUidProvider);

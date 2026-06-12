@@ -45,8 +45,10 @@ class FakeConvoySocketClient extends ConvoySocketClient {
   FakeConvoySocketClient({required super.convoyId})
       : super(
           config: ApiConfig.local(),
-          authToken: 'test-token',
+          tokenProvider: _token,
         );
+
+  static Future<String> _token() async => 'test-token';
 
   final StreamController<GpsUpdate> _controller =
       StreamController<GpsUpdate>.broadcast();
@@ -94,7 +96,7 @@ Widget _app(
       ),
       onboardingCompletedProvider.overrideWith((ref) => true),
       convoySocketFactoryProvider.overrideWithValue(
-        ({required convoyId, required authToken}) =>
+        ({required convoyId, required tokenProvider}) =>
             socket ?? FakeConvoySocketClient(convoyId: convoyId),
       ),
       ...activeViewStubOverrides(),

@@ -11,8 +11,12 @@ import '../../features/convoy/domain/waypoint_tour.dart';
 import '../config/api_config.dart';
 import '../models/gps_update.dart';
 import '../models/hazard_report.dart';
+import '../observability/app_logger.dart';
+import '../observability/observability_bootstrap.dart';
 import 'connection_status.dart';
 import 'hazard_event.dart';
+import 'inbound_frame_decoder.dart';
+import 'outbound_frame_queue.dart';
 
 /// Factory for opening a WebSocket. Defaults to the real
 /// `WebSocketChannel.connect`; tests inject a fake to drive failure /
@@ -28,25 +32,32 @@ typedef WebSocketChannelFactory = WebSocketChannel Function(Uri uri);
 /// exponential backoff (`baseRetryDelay * 2^attempt`, capped at
 /// `maxRetryDelay`) plus ±25% jitter to avoid thundering-herd reconnects
 /// when a tower comes back online with many cars on the same convoy.
-/// Reconnect attempts continue until `disconnect()` is called.
+/// Reconnect attempts continue until `disconnect()` is called. Every
+/// (re)connect fetches a FRESH auth token via [tokenProvider], and critical
+/// frames published while offline are buffered in an [OutboundFrameQueue]
+/// and flushed in original order after the next successful connect.
 class ConvoySocketClient {
   ConvoySocketClient({
     required this.config,
     required this.convoyId,
-    required this.authToken,
+    required this.tokenProvider,
     WebSocketChannelFactory? channelFactory,
     Duration baseRetryDelay = const Duration(seconds: 1),
     Duration maxRetryDelay = const Duration(seconds: 30),
     math.Random? random,
-  })  : _channelFactory =
-            channelFactory ?? ((uri) => WebSocketChannel.connect(uri)),
+  })  : _channelFactory = channelFactory ?? WebSocketChannel.connect,
         _baseRetryDelay = baseRetryDelay,
         _maxRetryDelay = maxRetryDelay,
         _random = random ?? math.Random();
 
   final ApiConfig config;
   final String convoyId;
-  final String authToken;
+
+  /// Liefert pro Connect-Versuch einen FRISCHEN Auth-Token. Firebase-ID-
+  /// Tokens laufen nach ~1 h ab — ein einmalig eingefrorener Token-String
+  /// würde jeden späteren Reconnect in eine 401-Endlosschleife schicken.
+  /// `User.getIdToken()` erneuert abgelaufene Tokens transparent.
+  final Future<String> Function() tokenProvider;
 
   final WebSocketChannelFactory _channelFactory;
   final Duration _baseRetryDelay;
@@ -56,12 +67,36 @@ class ConvoySocketClient {
   static const int _backoffExponentCap = 5;
   static const double _jitterFraction = 0.25;
 
+  /// Watchdog gegen halbtote Verbindungen (Funkloch, NAT-Timeout): Status
+  /// bleibt "connected", aber es kommt nichts mehr an.
+  ///
+  /// Entscheidung (robusteste Variante OHNE Backend-Änderung — Stand
+  /// backend/src/realtime/convoy_gateway.ts):
+  /// • Der Server erzeugt KEINEN periodischen App-Level-Traffic; Inbound-
+  ///   Frames entstehen nur aus dem Connect-Snapshot und dem Fanout der
+  ///   anderen Mitglieder.
+  /// • Der Server pingt PROTOKOLL-Level alle 25 s (backend heartbeat.ts,
+  ///   daher 35 s > 25 s) — Protokoll-Pings beantwortet die Dart-Runtime
+  ///   transparent, sie sind hier NICHT als Frames sichtbar und können den
+  ///   Watchdog nicht füttern.
+  /// • Ein App-Level-Self-Ping hätte kein Echo: der Fanout schließt den
+  ///   Sender aus, unbekannte Frame-Typen verwirft das Server-Schema.
+  /// ⇒ Der Watchdog koppelt an ausbleibende App-Frames, wird aber erst
+  ///   SCHARF, sobald auf der AKTUELLEN Verbindung mindestens ein Frame
+  ///   ankam: aktive Konvois liefern Peer-GPS mit ≥ 0,2 Hz (5-s-Park-
+  ///   intervall), 35 s Stille heißt dort "Leitung tot" → Reconnect.
+  ///   Stille Solo-Konvois (kein erwartbarer Inbound) zyklieren so nicht
+  ///   alle 35 s durch sinnlose Reconnects.
+  static const Duration kInboundSilenceTimeout = Duration(seconds: 35);
+
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _frameSub;
   Timer? _reconnectTimer;
+  Timer? _inboundWatchdog;
   int _retryAttempt = 0;
   bool _disposed = false;
   ConnectionStatus _currentStatus = ConnectionStatus.connecting;
+  final OutboundFrameQueue _outboundQueue = OutboundFrameQueue();
 
   final StreamController<GpsUpdate> _gpsController =
       StreamController<GpsUpdate>.broadcast();
@@ -102,9 +137,20 @@ class ConvoySocketClient {
   Future<void> _attemptConnect() async {
     if (_disposed) return;
     _setStatus(ConnectionStatus.connecting);
+    final String token;
+    try {
+      token = await tokenProvider();
+    } catch (error, stack) {
+      appLog.e('ConvoySocketClient: Token-Beschaffung fehlgeschlagen',
+          error: error, stackTrace: stack);
+      unawaited(ObservabilityBootstrap.build().reportError(error, stack));
+      _onChannelLost();
+      return;
+    }
+    if (_disposed) return;
     final endpoint = config.wsBaseUrl.replace(
       path: '/convoys/$convoyId/stream',
-      queryParameters: {'token': authToken},
+      queryParameters: {'token': token},
     );
     try {
       final channel = _channelFactory(endpoint);
@@ -125,12 +171,19 @@ class ConvoySocketClient {
         onDone: _onChannelLost,
         cancelOnError: false,
       );
+      // Während der Offline-Phase gepufferte kritische Frames (SOS!,
+      // hazard_remove, waypoint, tour) in Originalreihenfolge nachsenden.
+      for (final frame in _outboundQueue.drain()) {
+        channel.sink.add(frame);
+      }
     } catch (_) {
       _onChannelLost();
     }
   }
 
   void _onChannelLost() {
+    _inboundWatchdog?.cancel();
+    _inboundWatchdog = null;
     _frameSub?.cancel();
     _frameSub = null;
     _channel = null;
@@ -154,66 +207,62 @@ class ConvoySocketClient {
     });
   }
 
+  /// (Re-)startet den Inbound-Watchdog — siehe [kInboundSilenceTimeout].
+  void _restartInboundWatchdog() {
+    _inboundWatchdog?.cancel();
+    _inboundWatchdog = Timer(kInboundSilenceTimeout, _onInboundSilence);
+  }
+
+  /// 35 s ohne Inbound-Frame auf einer Verbindung, die schon Frames
+  /// geliefert hat → Leitung gilt als halbtot, normaler Reconnect greift.
+  void _onInboundSilence() {
+    if (_disposed || _currentStatus != ConnectionStatus.connected) return;
+    unawaited(_channel?.sink.close());
+    _onChannelLost();
+  }
+
   /// Best-effort publish. Silently drops the frame when the socket is
-  /// not currently connected (handshake in progress, tunnel, etc.) —
-  /// GPS is a fire-and-forget firehose where the next 1 Hz tick will
-  /// carry a fresher position anyway. PTT and other lossy-critical
-  /// payloads must NOT reuse this code path: they need explicit
-  /// buffering + flush-on-reconnect semantics.
+  /// not currently connected — GPS is a fire-and-forget firehose where
+  /// the next 1 Hz tick carries a fresher position anyway. Lossy-critical
+  /// payloads (SOS/hazard, waypoint, tour) go through [_sendCritical]
+  /// with offline buffering instead.
   void publishLocation(GpsUpdate update) {
     final sink = _channel?.sink;
     if (sink == null) return;
     sink.add(jsonEncode({'type': 'gps', 'payload': update.toJson()}));
   }
 
-  /// Best-effort publish des Waypoints. `null` löscht den aktuellen Pin.
-  /// Anders als GPS-Frames sind Waypoint-Wechsel selten — daher kein
-  /// Throttling, dafür aber auch keine Wiederholung bei Connection-Loss.
-  /// Eine spätere Iteration kann hier ein Last-Wins-Cache + Re-Publish
-  /// nach Reconnect ergänzen.
+  /// Publisht den Waypoint. `null` löscht den aktuellen Pin. Kritischer
+  /// Frame: wird ohne Verbindung gepuffert und nach dem Reconnect in
+  /// Originalreihenfolge nachgesendet (Empfänger sind last-wins).
   void publishWaypoint(Waypoint? waypoint) {
-    final sink = _channel?.sink;
-    if (sink == null) return;
-    sink.add(jsonEncode({
-      'type': 'waypoint',
-      'payload': waypoint?.toJson(),
-    }));
+    _sendCritical({'type': 'waypoint', 'payload': waypoint?.toJson()});
   }
 
-  /// Best-effort publish einer Gefahrenmeldung an alle Konvoi-Mitglieder.
-  /// Hazards sind „add-only" auf der Wire — Cleanup läuft client-seitig
-  /// via `expiresAt` Auto-Prune und explizitem `publishHazardRemoval`.
+  /// Publisht eine Gefahrenmeldung (inkl. SOS) an alle Konvoi-Mitglieder.
+  /// Hazards sind „add-only" auf der Wire — Cleanup läuft client-seitig via
+  /// `expiresAt` Auto-Prune und explizitem `publishHazardRemoval`. Kritischer
+  /// Frame: niemals still verwerfen, sondern offline puffern.
   void publishHazardReport(HazardReport report) {
-    final sink = _channel?.sink;
-    if (sink == null) return;
-    sink.add(jsonEncode({
-      'type': 'hazard',
-      'payload': report.toJson(),
-    }));
+    _sendCritical({'type': 'hazard', 'payload': report.toJson()});
   }
 
   /// Entfernt eine Gefahrenmeldung bei allen Mitgliedern. Der Server
   /// validiert dass der `reporterId`-Feldwert des Hazards mit dem
   /// authenticated sender übereinstimmt (nur Reporter darf entfernen).
   void publishHazardRemoval(String hazardId) {
-    final sink = _channel?.sink;
-    if (sink == null) return;
-    sink.add(jsonEncode({
+    _sendCritical({
       'type': 'hazard_remove',
       'payload': {'id': hazardId},
-    }));
+    });
   }
 
   /// Veröffentlicht den kompletten Tour-Plan (Reihenfolge der Stopps) an
   /// alle Konvoi-Mitglieder. Bewusst Full-State statt Delta — Tour-Edits
   /// sind selten genug und last-wins ist robuster bei verlorenen Frames.
+  /// Kritischer Frame: wird offline gepuffert statt verworfen.
   void publishTour(WaypointTour tour) {
-    final sink = _channel?.sink;
-    if (sink == null) return;
-    sink.add(jsonEncode({
-      'type': 'tour',
-      'payload': tour.toJson(),
-    }));
+    _sendCritical({'type': 'tour', 'payload': tour.toJson()});
   }
 
   /// Publisht eine Check-In-Bestätigung für einen Tour-Stopp. Identifiziert
@@ -229,7 +278,8 @@ class ConvoySocketClient {
   }
 
   /// Best-effort publish einer transienten Schnellaktion (Pause/Tankstopp/…).
-  /// Fire-and-forget wie GPS — keine Wiederholung bei Connection-Loss.
+  /// Fire-and-forget wie GPS — eine veraltete Schnellaktion nachzusenden
+  /// wäre faktisch falsch, daher bewusst KEINE Offline-Pufferung.
   void publishQuickAction(QuickAction action) {
     final sink = _channel?.sink;
     if (sink == null) return;
@@ -239,10 +289,25 @@ class ConvoySocketClient {
     }));
   }
 
+  /// Sendet einen kritischen Frame sofort — oder puffert ihn, solange der
+  /// Socket keine Verbindung hat, statt ihn still zu verwerfen. Nur so darf
+  /// die UI ehrlich „wird gesendet, sobald online" versprechen.
+  void _sendCritical(Map<String, Object?> frame) {
+    final encoded = jsonEncode(frame);
+    final sink = _channel?.sink;
+    if (sink == null) {
+      _outboundQueue.enqueue(encoded);
+      return;
+    }
+    sink.add(encoded);
+  }
+
   Future<void> disconnect() async {
     _disposed = true;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _inboundWatchdog?.cancel();
+    _inboundWatchdog = null;
     await _frameSub?.cancel();
     _frameSub = null;
     _setStatus(ConnectionStatus.offline);
@@ -267,57 +332,24 @@ class ConvoySocketClient {
   }
 
   void _handleFrame(dynamic frame) {
-    if (frame is! String) return;
-    final decoded = jsonDecode(frame);
-    if (decoded is! Map) return;
-    final type = decoded['type'];
-    if (type == 'gps') {
-      final payload = (decoded['payload']! as Map).cast<String, Object?>();
-      _gpsController.add(GpsUpdate.fromJson(payload));
-    } else if (type == 'waypoint') {
-      final raw = decoded['payload'];
-      if (raw == null) {
-        _waypointController.add(null);
-      } else if (raw is Map) {
-        _waypointController.add(
-          Waypoint.fromJson(raw.cast<String, Object?>()),
-        );
-      }
-    } else if (type == 'hazard') {
-      final raw = decoded['payload'];
-      if (raw is Map) {
-        _hazardController.add(
-          HazardAdded(
-            HazardReport.fromJson(raw.cast<String, Object?>()),
-          ),
-        );
-      }
-    } else if (type == 'hazard_remove') {
-      final raw = decoded['payload'];
-      if (raw is Map && raw['id'] is String) {
-        _hazardController.add(HazardRemoved(raw['id'] as String));
-      }
-    } else if (type == 'tour') {
-      final raw = decoded['payload'];
-      if (raw is Map) {
-        _tourController.add(
-          WaypointTour.fromJson(raw.cast<String, Object?>()),
-        );
-      }
-    } else if (type == 'checkin') {
-      final raw = decoded['payload'];
-      if (raw is Map) {
-        _checkInController.add(
-          WaypointCheckIn.fromJson(raw.cast<String, Object?>()),
-        );
-      }
-    } else if (type == 'status') {
-      final raw = decoded['payload'];
-      if (raw is Map) {
-        _quickActionController.add(
-          QuickAction.fromJson(raw.cast<String, Object?>()),
-        );
-      }
+    // Jeder Inbound-Frame beweist eine lebendige Leitung → Watchdog neu
+    // aufziehen (und damit nach dem ERSTEN Frame überhaupt erst scharf).
+    _restartInboundWatchdog();
+    switch (decodeInboundFrame(frame)) {
+      case GpsFrame(:final update):
+        _gpsController.add(update);
+      case WaypointFrame(:final waypoint):
+        _waypointController.add(waypoint);
+      case HazardFrame(:final event):
+        _hazardController.add(event);
+      case TourFrame(:final tour):
+        _tourController.add(tour);
+      case CheckInFrame(:final checkIn):
+        _checkInController.add(checkIn);
+      case QuickActionFrame(:final action):
+        _quickActionController.add(action);
+      case null:
+        break;
     }
   }
 }

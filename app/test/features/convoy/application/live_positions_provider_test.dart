@@ -89,10 +89,10 @@ void main() {
           authTokenProvider.overrideWithValue('tok'),
           clockProvider.overrideWithValue(() => DateTime.utc(2026, 5, 14)),
           convoySocketFactoryProvider.overrideWithValue(
-            ({required convoyId, required authToken}) => ConvoySocketClient(
+            ({required convoyId, required tokenProvider}) => ConvoySocketClient(
               config: ApiConfig.local(),
               convoyId: convoyId,
-              authToken: authToken,
+              tokenProvider: tokenProvider,
               channelFactory: (_) {
                 latestChannel = _FakeChannel();
                 return latestChannel;

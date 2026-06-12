@@ -34,7 +34,7 @@ void main() {
         selfMemberIdProvider.overrideWithValue(_selfMemberId),
         httpClientProvider.overrideWithValue(_buildMockHttpClient()),
         convoySocketFactoryProvider.overrideWithValue(
-          ({required convoyId, required authToken}) =>
+          ({required convoyId, required tokenProvider}) =>
               _DemoSocketClient(convoyId: convoyId),
         ),
         selfLocationStreamProvider.overrideWith(
@@ -212,8 +212,10 @@ class _DemoSocketClient extends ConvoySocketClient {
   _DemoSocketClient({required super.convoyId})
       : super(
           config: ApiConfig.local(),
-          authToken: 'demo-token',
+          tokenProvider: _demoToken,
         );
+
+  static Future<String> _demoToken() async => 'demo-token';
 
   final StreamController<GpsUpdate> _outbound =
       StreamController<GpsUpdate>.broadcast();

@@ -20,7 +20,9 @@ import '../../../support/active_view_test_overrides.dart';
 
 class _FakeSocket extends ConvoySocketClient {
   _FakeSocket({required super.convoyId})
-      : super(config: ApiConfig.local(), authToken: 'tok');
+      : super(config: ApiConfig.local(), tokenProvider: _token);
+
+  static Future<String> _token() async => 'tok';
 
   final _ctrl = StreamController<GpsUpdate>.broadcast();
 
@@ -80,7 +82,7 @@ Widget _app({_FakeSocket? socket}) {
         () => DateTime.utc(2026, 5, 13, 12, 0, 30),
       ),
       convoySocketFactoryProvider.overrideWithValue(
-        ({required convoyId, required authToken}) =>
+        ({required convoyId, required tokenProvider}) =>
             socket ?? _FakeSocket(convoyId: convoyId),
       ),
       ...activeViewStubOverrides(),

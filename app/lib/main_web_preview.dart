@@ -457,11 +457,11 @@ Future<void> main() async {
         // sind nur dort registriert. Auf Web kein nativer Handler, also Stub.
         if (kIsWeb) pttChannelProvider.overrideWithValue(_NoopPttChannel()),
         convoySocketFactoryProvider.overrideWith((ref) {
-          return ({required convoyId, required authToken}) =>
+          return ({required convoyId, required tokenProvider}) =>
               ConvoySocketClient(
                 config: ref.read(apiConfigProvider),
                 convoyId: convoyId,
-                authToken: authToken,
+                tokenProvider: tokenProvider,
                 channelFactory: _FakeWebSocketChannel.new,
               );
         }),

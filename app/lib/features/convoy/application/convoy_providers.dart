@@ -43,6 +43,16 @@ final authTokenProvider = Provider<String>((ref) {
   );
 });
 
+/// Liefert pro Aufruf einen FRISCHEN Auth-Token für den Realtime-Socket.
+/// Default delegiert an [authTokenProvider] (Tests/Demos überschreiben den
+/// ohnehin); main.dart überschreibt diesen Provider mit FirebaseAuth
+/// `getIdToken()`, das abgelaufene Tokens vor jedem (Re-)Connect transparent
+/// erneuert — sonst hängt jeder Reconnect nach Token-Ablauf (1 h) in einer
+/// 401-Endlosschleife.
+final freshAuthTokenProvider = Provider<Future<String> Function()>((ref) {
+  return () async => ref.read(authTokenProvider);
+});
+
 /// Identifier of the local user inside any joined convoy. Overridable
 /// from tests; real auth will provide this from the token claims.
 final selfMemberIdProvider = Provider<String>((ref) {
@@ -92,24 +102,28 @@ final convoyRosterRefreshProvider = Provider.autoDispose<void>((ref) {
 
 /// Factory that constructs a real-time socket client for a convoy. Kept
 /// as a factory (not a direct provider) so test/CI can swap the socket
-/// implementation without touching every consumer.
+/// implementation without touching every consumer. [tokenProvider] wird
+/// pro (Re-)Connect frisch awaited — niemals einen eingefrorenen Token-
+/// String durchreichen.
 typedef ConvoySocketFactory = ConvoySocketClient Function({
   required String convoyId,
-  required String authToken,
+  required Future<String> Function() tokenProvider,
 });
 
 final convoySocketFactoryProvider = Provider<ConvoySocketFactory>((ref) {
   final config = ref.watch(apiConfigProvider);
-  return ({required convoyId, required authToken}) => ConvoySocketClient(
+  return ({required convoyId, required tokenProvider}) => ConvoySocketClient(
         config: config,
         convoyId: convoyId,
-        authToken: authToken,
+        tokenProvider: tokenProvider,
       );
 });
 
 /// Live socket client for the currently joined convoy. `null` while in
 /// the lobby. Auto-disposed when the convoy changes or the listener tree
-/// goes away.
+/// goes away. Bewusst KEIN `watch` auf einen Token-Wert mehr: der Client
+/// holt sich Tokens selbst frisch, ein Token-Refresh darf den Socket
+/// nicht neu aufbauen.
 final convoySocketProvider =
     Provider.autoDispose<ConvoySocketClient?>((ref) {
   final convoy = ref.watch(currentConvoyProvider);
@@ -117,8 +131,10 @@ final convoySocketProvider =
     return null;
   }
   final factory = ref.watch(convoySocketFactoryProvider);
-  final token = ref.watch(authTokenProvider);
-  final client = factory(convoyId: convoy.id, authToken: token);
+  final client = factory(
+    convoyId: convoy.id,
+    tokenProvider: ref.watch(freshAuthTokenProvider),
+  );
   unawaited(client.connect());
   ref.onDispose(() {
     unawaited(client.disconnect());
