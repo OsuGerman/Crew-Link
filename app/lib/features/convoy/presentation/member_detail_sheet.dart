@@ -156,17 +156,12 @@ class _MemberHero extends StatelessWidget {
           width: 64,
           height: 64,
           alignment: Alignment.center,
+          // Glow entfernt — ruhiges, flaches Design; die Member-Farbe trägt
+          // weiterhin Fläche + Border.
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.18),
             shape: BoxShape.circle,
             border: Border.all(color: color, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.28),
-                blurRadius: 24,
-                spreadRadius: 1,
-              ),
-            ],
           ),
           child: Text(
             _initials(),
@@ -281,18 +276,15 @@ class _VehicleCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
+      // Flach statt Gradient/Orange-Rahmen — Orange bleibt dem kleinen
+      // Icon-Plättchen vorbehalten (Muster: ConvoyInviteCta).
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.orange.withValues(alpha: 0.14),
-            AppColors.surfaceHigh,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadii.card),
         border: Border.all(
-            color: AppColors.orange.withValues(alpha: 0.5), width: 1),
+          color: AppColors.surfaceOutline,
+          width: AppBorders.hairline,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -303,11 +295,9 @@ class _VehicleCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
+                decoration: const BoxDecoration(
+                  color: AppAccents.orangeTint,
                   shape: BoxShape.circle,
-                  border: Border.all(
-                      color: AppColors.surfaceOutline, width: 0.6),
                 ),
                 child: const Icon(
                   Icons.directions_car_filled_rounded,

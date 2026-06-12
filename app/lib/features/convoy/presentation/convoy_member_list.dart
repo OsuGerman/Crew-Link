@@ -195,9 +195,14 @@ class _MemberRow extends StatelessWidget {
 
   static Color _tierColor(GapTier t) => switch (t) {
         GapTier.green => AppColors.success,
-        GapTier.yellow => const Color(0xFFFFC53D),
+        GapTier.yellow => AppColors.warning,
         GapTier.red => AppColors.danger,
       };
+
+  /// Weiße Ziffern auf Amber erreichen nur ~1.6:1 Kontrast — auf dem gelben
+  /// Badge muss der Text dunkel sein, auf grün/rot bleibt er weiß.
+  static Color _tierTextColor(GapTier t) =>
+      t == GapTier.yellow ? AppColors.background : Colors.white;
 
   String _initials() {
     final source = entry.displayName.trim();
@@ -295,11 +300,11 @@ class _MemberRow extends StatelessWidget {
                       ),
                       child: Text(
                         '${entry.ordinal}',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: _tierTextColor(entry.tier),
                           fontSize: 9,
                           fontWeight: FontWeight.w800,
-                          fontFeatures: [FontFeature.tabularFigures()],
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
                     ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../application/convoy_providers.dart';
 import '../application/lost_connection_watcher.dart';
 
@@ -8,8 +9,14 @@ import '../application/lost_connection_watcher.dart';
 /// proximity threshold. Unlike the event-driven ProximityWarning banner,
 /// this derives state from the live position snapshot and remains visible
 /// as long as a member stays out of range.
+///
+/// Farbsystem: AppColors.danger/dangerSurface statt scheme.errorContainer —
+/// die M3-Container-Töne wirken in der dunklen App fremd.
 class LostConnectionBanner extends ConsumerWidget {
   const LostConnectionBanner({super.key});
+
+  static const double _iconSize = 18;
+  static const double _fontSize = 13;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,7 +24,6 @@ class LostConnectionBanner extends ConsumerWidget {
     final lostIds = ref.watch(lostMembersProvider);
     if (convoy == null || lostIds.isEmpty) return const SizedBox.shrink();
 
-    final scheme = Theme.of(context).colorScheme;
     final names = lostIds.map((id) {
       return convoy.members
               .where((m) => m.id == id)
@@ -28,24 +34,35 @@ class LostConnectionBanner extends ConsumerWidget {
     final threshold = convoy.proximityWarningMeters.toStringAsFixed(0);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Container(
         key: const ValueKey('lost-connection-banner'),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
-          color: scheme.errorContainer,
-          borderRadius: BorderRadius.circular(8),
+          color: AppColors.dangerSurface,
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(
+            color: AppColors.danger,
+            width: AppBorders.hairline,
+          ),
         ),
         child: Row(
           children: [
-            Icon(Icons.link_off, color: scheme.onErrorContainer, size: 18),
-            const SizedBox(width: 8),
+            const Icon(
+              Icons.link_off,
+              color: AppColors.danger,
+              size: _iconSize,
+            ),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 '$names: mehr als $threshold m entfernt',
-                style: TextStyle(
-                  color: scheme.onErrorContainer,
-                  fontSize: 13,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: _fontSize,
                 ),
               ),
             ),

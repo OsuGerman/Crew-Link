@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/realtime/connection_status.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../convoy/application/convoy_providers.dart';
 import '../application/maps_providers.dart';
 import 'convoy_map_widget.dart';
@@ -33,52 +34,73 @@ class ConvoyMapScreen extends ConsumerWidget {
   }
 }
 
+/// Farbsystem: AppColors statt Material-3-Scheme-Containern — die
+/// Baseline-Lila-Töne (secondary/tertiaryContainer) wirken in der dunklen
+/// App fremd (Stil wie ConnectionStatusBanner/ProximityBanner).
 class _StatusBanner extends StatelessWidget {
   const _StatusBanner({required this.status});
 
   final ConnectionStatus status;
 
+  static const double _iconSize = 16;
+  static const double _fontSize = 13;
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (label, icon, bg, fg) = switch (status) {
+    final (label, icon, bg, fg, borderColor) = switch (status) {
       ConnectionStatus.connecting => (
           'Verbinde …',
           Icons.sync,
-          scheme.secondaryContainer,
-          scheme.onSecondaryContainer,
+          AppColors.surfaceHigh,
+          AppColors.textSecondary,
+          AppColors.surfaceOutline,
         ),
       ConnectionStatus.reconnecting => (
           'Verbindung verloren · versuche erneut …',
           Icons.cloud_off,
-          scheme.tertiaryContainer,
-          scheme.onTertiaryContainer,
+          AppColors.surfaceHigh,
+          AppColors.warning,
+          AppColors.surfaceOutline,
         ),
       ConnectionStatus.offline => (
           'Offline',
           Icons.signal_wifi_off,
-          scheme.errorContainer,
-          scheme.onErrorContainer,
+          AppColors.dangerSurface,
+          AppColors.danger,
+          AppColors.danger,
         ),
       ConnectionStatus.connected => (
           '',
           Icons.check,
-          scheme.surface,
-          scheme.onSurface,
+          AppColors.surface,
+          AppColors.textPrimary,
+          AppColors.surfaceOutline,
         ),
     };
 
-    return Container(
-      key: const ValueKey('map-status-banner'),
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      color: bg,
-      child: Row(
-        children: [
-          Icon(icon, color: fg, size: 16),
-          const SizedBox(width: 8),
-          Text(label, style: TextStyle(color: fg, fontSize: 13)),
-        ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0,
+      ),
+      child: Container(
+        key: const ValueKey('map-status-banner'),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: borderColor, width: AppBorders.hairline),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: fg, size: _iconSize),
+            const SizedBox(width: AppSpacing.sm),
+            Text(label, style: TextStyle(color: fg, fontSize: _fontSize)),
+          ],
+        ),
       ),
     );
   }

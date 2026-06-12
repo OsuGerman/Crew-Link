@@ -2,6 +2,7 @@ import 'package:crew_link/core/models/convoy.dart';
 import 'package:crew_link/core/models/convoy_member.dart';
 import 'package:crew_link/core/models/gps_update.dart';
 import 'package:crew_link/core/models/vehicle_profile.dart';
+import 'package:crew_link/core/theme/app_theme.dart';
 import 'package:crew_link/features/convoy/presentation/convoy_member_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -155,6 +156,33 @@ void main() {
         selfMemberId: 'me',
       )));
       expect(find.text('unlabeled-peer'), findsOneWidget);
+    });
+
+    testWidgets('yellow gap badge uses dark text, green badge stays white',
+        (tester) async {
+      final convoy = _convoy(members: const [
+        ConvoyMember(id: 'me', displayName: 'Du', isLeader: true),
+        ConvoyMember(id: 'near', displayName: 'Near'),
+        ConvoyMember(id: 'mid', displayName: 'Mid'),
+      ]);
+      final positions = <String, GpsUpdate>{
+        'me': _u('me', 52.5200, 13.4050),
+        // ~111 m hinterm Leader → grün (< 50 % von 500 m), Ordinal 2.
+        'near': _u('near', 52.5210, 13.4050),
+        // ~300 m hinterm Leader → gelb (250–500 m), Ordinal 3.
+        'mid': _u('mid', 52.5227, 13.4050),
+      };
+      await tester.pumpWidget(_harness(ConvoyMemberList(
+        convoy: convoy,
+        positions: positions,
+        selfMemberId: 'me',
+      )));
+
+      // Weiß auf Amber wäre ~1.6:1 — das gelbe Badge braucht dunklen Text.
+      final yellowBadge = tester.widget<Text>(find.text('3'));
+      expect(yellowBadge.style?.color, AppColors.background);
+      final greenBadge = tester.widget<Text>(find.text('2'));
+      expect(greenBadge.style?.color, Colors.white);
     });
 
     testWidgets('shows vehicle headline when present', (tester) async {

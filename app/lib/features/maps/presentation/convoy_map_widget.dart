@@ -44,6 +44,25 @@ String _tierHex(GapTier t) => switch (t) {
       GapTier.red => '#E94560',
     };
 
+/// CSS-Hex aus einem Design-Token — MapLibre-Expressions nehmen nur Strings,
+/// die Farbe selbst kommt aber weiter aus AppColors (kein neues Hex-Literal).
+String _cssHex(Color c) =>
+    '#${c.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+
+/// Ziffern-Farbe der Member-Pins, an die Pin-Farbe gekoppelt: weiße Ziffern
+/// auf Amber erreichen nur ~1.6:1 Kontrast — gelbe Pins bekommen dunklen
+/// Text, rot/grün/self bleiben weiß.
+final _memberLabelColorExpression = [
+  'case',
+  [
+    '==',
+    ['get', 'pinColor'],
+    _tierHex(GapTier.yellow),
+  ],
+  _cssHex(AppColors.background),
+  _strokeColor,
+];
+
 class ConvoyMapWidget extends ConsumerStatefulWidget {
   const ConvoyMapWidget({super.key});
 
@@ -135,13 +154,13 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     await ctrl.addSymbolLayer(
       _sourceId,
       _labelLayerId,
-      const SymbolLayerProperties(
-        textField: ['get', 'label'],
+      SymbolLayerProperties(
+        textField: const ['get', 'label'],
         textSize: _labelTextSize,
-        textColor: _strokeColor,
+        textColor: _memberLabelColorExpression,
         // OpenFreeMap serves "Noto Sans", not the MapLibre default "Open Sans"
         // (which 404s the glyph range → labels never render).
-        textFont: ['Noto Sans Regular'],
+        textFont: const ['Noto Sans Regular'],
         textAllowOverlap: true,
         textIgnorePlacement: true,
         textAnchor: 'center',

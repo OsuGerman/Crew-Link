@@ -466,17 +466,15 @@ class _HeroCard extends StatelessWidget {
     return Container(
       key: const ValueKey('vehicle-hero-card'),
       padding: const EdgeInsets.all(AppSpacing.lg),
+      // Flach statt Gradient/Orange-Rahmen — Orange bleibt dem kleinen
+      // Icon-Plättchen vorbehalten (Muster: ConvoyInviteCta).
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.orange.withValues(alpha: 0.16),
-            AppColors.surfaceHigh,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadii.card),
-        border: Border.all(color: AppColors.orange, width: 1.4),
+        border: Border.all(
+          color: AppColors.surfaceOutline,
+          width: AppBorders.hairline,
+        ),
       ),
       child: Row(
         children: [
@@ -484,11 +482,9 @@ class _HeroCard extends StatelessWidget {
             width: 72,
             height: 72,
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
+            decoration: const BoxDecoration(
+              color: AppAccents.orangeTint,
               shape: BoxShape.circle,
-              border:
-                  Border.all(color: AppColors.surfaceOutline, width: 0.6),
             ),
             child: const Icon(
               Icons.directions_car_filled_rounded,
