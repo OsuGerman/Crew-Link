@@ -67,7 +67,7 @@ class ConvoyInviteCta extends StatelessWidget {
                       ),
                       SizedBox(height: 2),
                       Text(
-                        'Tippen kopiert den Einladungslink zum Teilen.',
+                        'Öffnet das Teilen-Menü mit deinem Einladungslink.',
                         style: TextStyle(
                           fontSize: 11,
                           color: AppColors.textSecondary,
