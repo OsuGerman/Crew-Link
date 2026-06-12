@@ -7,6 +7,7 @@ import '../../../core/models/gps_update.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../maps/presentation/convoy_map_widget.dart';
 import '../../push_to_talk/presentation/ptt_button.dart';
+import '../application/active_proximity_warning.dart';
 import '../application/convoy_providers.dart';
 import '../domain/proximity_warning.dart';
 import 'connection_status_banner.dart';
@@ -31,7 +32,13 @@ class DriverModeActiveView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final positionsAsync = ref.watch(livePositionsProvider);
-    final warning = ref.watch(proximityWarningsProvider).valueOrNull;
+    // Zustandsbasiert (Auto-Clear nach TTL) statt "letztes Stream-Event für
+    // immer" — und mit Roster-Anzeigename statt roher Firebase-UID.
+    final warning = ref.watch(activeProximityWarningProvider);
+    final warningName = warning == null
+        ? null
+        : memberDisplayName(
+            ref.watch(currentConvoyProvider), warning.otherMemberId);
     final positions =
         positionsAsync.valueOrNull ?? const <String, GpsUpdate>{};
     final selfMemberId = ref.watch(selfMemberIdProvider);
@@ -39,7 +46,8 @@ class DriverModeActiveView extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const ConnectionStatusBanner(),
-        if (warning != null) _DriverProximityCard(warning: warning),
+        if (warning != null)
+          _DriverProximityCard(warning: warning, memberName: warningName!),
         if (warning != null) const SizedBox(height: AppSpacing.md),
         const WaypointBanner(),
         const SizedBox(height: AppSpacing.md),
@@ -96,9 +104,13 @@ class DriverModeActiveView extends ConsumerWidget {
 /// Großer Abstands-Card im Driver-Mode. ABSTAND-Caps + Distanz 32 px für
 /// Glance-Lesbarkeit am Steuer.
 class _DriverProximityCard extends StatelessWidget {
-  const _DriverProximityCard({required this.warning});
+  const _DriverProximityCard({
+    required this.warning,
+    required this.memberName,
+  });
 
   final ProximityWarning warning;
+  final String memberName;
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +157,7 @@ class _DriverProximityCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${warning.distanceMeters.toStringAsFixed(0)} m zu '
-                  '${warning.otherMemberId}',
+                  '$memberName',
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 22,

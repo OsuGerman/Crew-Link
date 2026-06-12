@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/carplay/carplay_providers.dart';
@@ -16,9 +15,9 @@ import '../application/breach_notification_watcher.dart';
 import '../application/convoy_providers.dart';
 import '../application/convoy_split_watcher.dart';
 import '../application/lost_connection_watcher.dart';
+import '../application/wakelock_provider.dart';
 import '../application/waypoint_providers.dart';
 import '../domain/convoy_split_event.dart';
-import '../domain/proximity_warning.dart';
 import 'active_convoy_action_bar.dart';
 import 'connection_status_banner.dart';
 import 'convoy_invite_cta.dart';
@@ -26,9 +25,11 @@ import 'convoy_member_list.dart';
 import 'convoy_status_header.dart';
 import 'gps_readiness_banner.dart';
 import 'hazard_banner_strip.dart';
+import 'invite_share.dart';
 import 'leader_route_cta.dart';
 import 'lost_connection_banner.dart';
 import 'members_sheet_pill.dart';
+import 'proximity_banner.dart';
 import 'quick_actions_row.dart';
 import 'route_sheet.dart';
 import 'sos_hold_button.dart';
@@ -89,6 +90,9 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
       ref.watch(pttPlaybackProvider(convoy.id));
       ref.watch(carPlayConvoyStateWiringProvider);
       ref.watch(lostConnectionWatcherProvider);
+      // Display anlassen, solange der Konvoi läuft — Karte + PTT müssen am
+      // Lenker ohne erneutes Entsperren sichtbar bleiben.
+      ref.watch(convoyWakelockProvider);
     }
     ref.listen<ConvoySplitEvent?>(activeSplitProvider, (_, event) {
       if (event == null || _splitDialogOpen) return;
@@ -106,7 +110,6 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
         ),
       ).whenComplete(() => _splitDialogOpen = false);
     });
-    final warning = ref.watch(proximityWarningsProvider);
     final positions = ref.watch(livePositionsProvider);
     final snapshot = positions.valueOrNull ?? const <String, GpsUpdate>{};
     final selfId = ref.watch(selfMemberIdProvider);
@@ -123,7 +126,7 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
             onActivate: () =>
                 unawaited(LocationPermissionService.ensureReady()),
           ),
-        _ProximityBanner(warning: warning),
+        const ProximityBanner(),
         const WaypointBanner(),
         const SizedBox(height: AppSpacing.md),
         const HazardBannerStrip(),
@@ -178,17 +181,15 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
   }
 
   void _shareInvite(BuildContext context, Convoy convoy) {
-    Clipboard.setData(
-      ClipboardData(text: 'crewlink://join/${convoy.inviteCode}'),
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
+    unawaited(shareConvoyInvite(
+      context,
+      ref,
+      convoy: convoy,
+      fallbackClipboardText: 'crewlink://join/${convoy.inviteCode}',
+      fallbackSnackbarText:
           'Einladungslink kopiert (Code ${convoy.inviteCode}) — '
           'z. B. in WhatsApp einfügen.',
-        ),
-      ),
-    );
+    ));
   }
 
   void _openMembersSheet(
@@ -210,78 +211,6 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
             positions: positions,
             selfMemberId: selfId,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Roter Abstands-Banner — bleibt im neuen Design erhalten, neuer Style.
-class _ProximityBanner extends StatelessWidget {
-  const _ProximityBanner({required this.warning});
-
-  final AsyncValue<ProximityWarning> warning;
-
-  @override
-  Widget build(BuildContext context) {
-    final value = warning.valueOrNull;
-    if (value == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Container(
-        key: const ValueKey('proximity-banner'),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.dangerSurface,
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.danger, width: 1.2),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.danger.withValues(alpha: 0.22),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.warning_amber_rounded,
-                color: AppColors.danger,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'ABSTAND',
-                    style: AppTextStyles.sectionLabel.copyWith(
-                      fontSize: 10,
-                      color: AppColors.danger,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${value.otherMemberId} · '
-                    '${value.distanceMeters.toStringAsFixed(0)} m entfernt',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );

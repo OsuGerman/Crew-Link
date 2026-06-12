@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/branding/crew_link_wordmark.dart';
@@ -26,6 +25,7 @@ import 'convoy_join_sheet.dart';
 import 'driver_active_view.dart';
 import 'fuel_sheet.dart';
 import 'hazard_quick_sheet.dart';
+import 'invite_share.dart';
 import 'lobby_view.dart';
 import 'route_sheet.dart';
 
@@ -101,7 +101,7 @@ class ConvoyHomeScreen extends ConsumerWidget {
               key: const ValueKey('share-invite'),
               tooltip: 'Einladung teilen',
               icon: const Icon(Icons.share_outlined),
-              onPressed: () => _shareInvite(context, convoy),
+              onPressed: () => _shareInvite(context, ref, convoy),
             ),
           if (convoy != null)
             IconButton(
@@ -295,12 +295,14 @@ class ConvoyHomeScreen extends ConsumerWidget {
     );
   }
 
-  void _shareInvite(BuildContext context, Convoy convoy) {
-    final link = 'crewlink://join/${convoy.inviteCode}';
-    Clipboard.setData(ClipboardData(text: link));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Einladungslink kopiert!')),
-    );
+  void _shareInvite(BuildContext context, WidgetRef ref, Convoy convoy) {
+    unawaited(shareConvoyInvite(
+      context,
+      ref,
+      convoy: convoy,
+      fallbackClipboardText: 'crewlink://join/${convoy.inviteCode}',
+      fallbackSnackbarText: 'Einladungslink kopiert!',
+    ));
   }
 
   Future<void> _leave(BuildContext context, WidgetRef ref, Convoy convoy) async {

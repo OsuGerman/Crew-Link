@@ -1,11 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/convoy.dart';
 import '../../../core/realtime/connection_status.dart';
 import '../../../core/theme/app_theme.dart';
 import '../application/convoy_providers.dart';
+import 'invite_share.dart';
 
 /// Kompakter Header über dem Radar — Konvoi-Name + Status-Zeile mit
 /// grünem Live-Dot, Mitgliederzahl und Einladungscode (tap-to-copy).
@@ -63,7 +65,17 @@ class ConvoyStatusHeader extends ConsumerWidget {
                 ),
               ),
               _dot(),
-              _CodePill(code: convoy.inviteCode),
+              _CodePill(
+                code: convoy.inviteCode,
+                onTap: () => unawaited(shareConvoyInvite(
+                  context,
+                  ref,
+                  convoy: convoy,
+                  fallbackClipboardText: convoy.inviteCode,
+                  fallbackSnackbarText: 'Code ${convoy.inviteCode} kopiert',
+                  fallbackSnackbarDuration: const Duration(seconds: 1),
+                )),
+              ),
             ],
           ),
         ],
@@ -142,21 +154,17 @@ class _LiveDotState extends State<_LiveDot>
 }
 
 class _CodePill extends StatelessWidget {
-  const _CodePill({required this.code});
+  const _CodePill({required this.code, required this.onTap});
   final String code;
+
+  /// Öffnet das System-Share-Sheet mit dem Einladungstext (Fallback:
+  /// Code in die Zwischenablage wie früher) — verdrahtet im Header.
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Clipboard.setData(ClipboardData(text: code));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Code $code kopiert'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      },
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
