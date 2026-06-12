@@ -420,6 +420,7 @@ void main() {
         (req) => http.Response(
           jsonEncode(_fakeConvoyJson(members: [
             {'id': 'self', 'displayName': 'Me', 'isLeader': true},
+            {'id': 'buddy', 'displayName': 'Buddy'},
           ])),
           200,
         ),

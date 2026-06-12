@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/carplay/carplay_providers.dart';
@@ -20,6 +21,7 @@ import '../domain/convoy_split_event.dart';
 import '../domain/proximity_warning.dart';
 import 'active_convoy_action_bar.dart';
 import 'connection_status_banner.dart';
+import 'convoy_invite_cta.dart';
 import 'convoy_member_list.dart';
 import 'convoy_status_header.dart';
 import 'gps_readiness_banner.dart';
@@ -129,7 +131,13 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
         // Leader-only call-to-action: the road route is only drawn once a
         // destination is set, but that entry is otherwise hidden behind a small
         // app-bar flag icon. Surface it prominently while the tour is empty.
-        if (isLeader && tourIsEmpty)
+        // Smart, context-aware CTA — always surface the single most useful next
+        // action: invite people while alone, otherwise plan a route.
+        if (convoy.members.length <= 1)
+          ConvoyInviteCta(
+            onInvite: () => _shareInvite(context, convoy),
+          )
+        else if (isLeader && tourIsEmpty)
           LeaderRouteCta(onPlanRoute: () => _openRouteSheet(context)),
         // Full-size live map — the main view. The pins already show everyone,
         // so the member list moves into a tap-away sheet (members pill below).
@@ -166,6 +174,20 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
       context: context,
       isScrollControlled: true,
       builder: (_) => const RouteSheet(),
+    );
+  }
+
+  void _shareInvite(BuildContext context, Convoy convoy) {
+    Clipboard.setData(
+      ClipboardData(text: 'crewlink://join/${convoy.inviteCode}'),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Einladungslink kopiert (Code ${convoy.inviteCode}) — '
+          'z. B. in WhatsApp einfügen.',
+        ),
+      ),
     );
   }
 
