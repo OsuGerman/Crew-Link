@@ -273,6 +273,62 @@ describe('convoy gateway', () => {
     wsB.close();
   });
 
+  it('broadcasts a waypoint frame from the convoy leader', async () => {
+    const convoy = 'convoy-wp-ok';
+    const wsLeader = await openSocket(url(MEMBER_A, convoy)); // leader
+    const wsB = await openSocket(url(MEMBER_B, convoy));
+
+    const inbound = nextMessage(wsB);
+    wsLeader.send(
+      JSON.stringify({
+        type: 'waypoint',
+        payload: {
+          latitude: 48,
+          longitude: 11,
+          label: 'Treffpunkt',
+          setBy: MEMBER_A,
+          setAt: new Date().toISOString(),
+        },
+      } satisfies InboundFrame),
+    );
+
+    const received = JSON.parse(await inbound) as InboundFrame;
+    expect(received.type).toBe('waypoint');
+
+    wsLeader.close();
+    wsB.close();
+  });
+
+  it('drops a waypoint frame from a non-leader', async () => {
+    const convoy = 'convoy-wp-deny';
+    const wsLeader = await openSocket(url(MEMBER_A, convoy));
+    const wsB = await openSocket(url(MEMBER_B, convoy));
+
+    let seen = false;
+    wsLeader.addEventListener('message', () => {
+      seen = true;
+    });
+    // member-b is not the leader — its waypoint must never reach member-a.
+    wsB.send(
+      JSON.stringify({
+        type: 'waypoint',
+        payload: {
+          latitude: 48,
+          longitude: 11,
+          label: 'Treffpunkt',
+          setBy: MEMBER_B,
+          setAt: new Date().toISOString(),
+        },
+      } satisfies InboundFrame),
+    );
+
+    await new Promise((r) => setTimeout(r, 100));
+    expect(seen).toBe(false);
+
+    wsLeader.close();
+    wsB.close();
+  });
+
   it('drops a tour frame from a non-leader', async () => {
     const convoy = 'convoy-tour-deny';
     const wsLeader = await openSocket(url(MEMBER_A, convoy));

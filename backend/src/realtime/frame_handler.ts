@@ -50,8 +50,6 @@ export async function handleFrame(
   // gps, setBy on waypoint) must match the authenticated member of the
   // originating connection. Waypoint-clear (payload === null) has no
   // originator and is accepted as-is from the authenticated sender.
-  // TODO: leader-only enforcement for waypoint frames — requires a
-  // `convoy_members` lookup of the originating member's isLeader flag.
   const claimedOriginator = originatorOf(result.data);
   if (claimedOriginator !== null && claimedOriginator !== originMemberId) {
     log.warn(
@@ -78,13 +76,17 @@ export async function handleFrame(
     }
   }
 
-  // Leader-only: the route/tour may only be set by the convoy owner.
-  if (result.data.type === 'tour' && ctx.resolveLeader !== undefined) {
+  // Leader-only: the route/tour and the shared waypoint may only be set (or
+  // cleared) by the convoy owner.
+  if (
+    (result.data.type === 'tour' || result.data.type === 'waypoint') &&
+    ctx.resolveLeader !== undefined
+  ) {
     const isLeader = await ctx.resolveLeader(originMemberId, convoyId);
     if (!isLeader) {
       log.warn(
-        { convoyId, memberId: originMemberId },
-        'tour from non-leader — frame dropped',
+        { convoyId, memberId: originMemberId, frameType: result.data.type },
+        'leader-only frame from non-leader — frame dropped',
       );
       return;
     }
