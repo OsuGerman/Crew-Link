@@ -3,12 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/gps_update.dart';
 import '../../../core/models/hazard_report.dart';
+import '../../../core/realtime/connection_status.dart';
 import '../../../core/theme/app_theme.dart';
+import '../application/convoy_providers.dart';
 import '../application/hazard_providers.dart';
 
 /// Broadcasts an SOS — the user's current position as a `sos` hazard — to every
 /// convoy member and shows a confirmation. Synchronous; safe to call before a
 /// pop because the SnackBar is enqueued on the nearest messenger immediately.
+///
+/// Ehrliches Feedback: ohne Verbindung wird NICHT "gesendet" behauptet —
+/// der SOS-Frame landet dann in der Offline-Queue des Socket-Clients und
+/// geht nach dem Reconnect garantiert raus; genau das sagt die SnackBar.
 void broadcastSos(
   BuildContext context,
   WidgetRef ref, {
@@ -23,18 +29,22 @@ void broadcastSos(
         reporterId: selfId,
         convoyId: convoyId,
       );
+  final connected = ref.read(convoySocketProvider)?.currentStatus ==
+      ConnectionStatus.connected;
   ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
+    SnackBar(
       backgroundColor: AppColors.danger,
       content: Row(
         children: [
-          Icon(Icons.sos_rounded, color: Colors.white),
-          SizedBox(width: AppSpacing.sm),
+          const Icon(Icons.sos_rounded, color: Colors.white),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              'SOS an alle gesendet — deine Position wurde geteilt.',
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              connected
+                  ? 'SOS an alle gesendet — deine Position wurde geteilt.'
+                  : 'Keine Verbindung — SOS wird gesendet, sobald online.',
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w700),
             ),
           ),
         ],

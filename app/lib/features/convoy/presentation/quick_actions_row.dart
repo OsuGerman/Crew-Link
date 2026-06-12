@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/realtime/connection_status.dart';
 import '../../../core/theme/app_theme.dart';
 import '../application/convoy_providers.dart';
 import '../application/quick_action_providers.dart';
@@ -70,10 +71,19 @@ class _QuickActionButton extends ConsumerWidget {
         borderRadius: BorderRadius.circular(AppRadii.card),
         onTap: () {
           ref.read(quickActionProvider.notifier).send(kind);
+          // Ehrliches Feedback: Status-Frames sind fire-and-forget (bewusst
+          // KEINE Offline-Queue — eine nachgesendete, veraltete Schnellaktion
+          // wäre irreführend). Ohne Verbindung also keinen Erfolg behaupten.
+          final connected = ref.read(convoySocketProvider)?.currentStatus ==
+              ConnectionStatus.connected;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               duration: const Duration(seconds: 2),
-              content: Text('„${m.label}" an den Konvoi gesendet'),
+              content: Text(
+                connected
+                    ? '„${m.label}" an den Konvoi gesendet'
+                    : 'Keine Verbindung — „${m.label}" wurde nicht gesendet.',
+              ),
             ),
           );
         },
