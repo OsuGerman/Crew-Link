@@ -121,6 +121,28 @@ void main() {
       expect(btn.onPressed, isNull);
     });
 
+    testWidgets('step 1 → 2 — Weiter schließt die Tastatur (Fokus weg)',
+        (tester) async {
+      await tester.pumpWidget(_host());
+      await _openSheet(tester);
+
+      await tester.enterText(find.byType(TextField), 'Echo Run');
+      await tester.pump();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).focusNode?.hasFocus ??
+            FocusManager.instance.primaryFocus != null,
+        isTrue,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('convoy-create-step0-btn')));
+      await tester.pumpAndSettle();
+
+      // Schritt 2+3 haben keine Texteingabe — Fokus (und damit die
+      // Bildschirmtastatur) muss nach "Weiter" aufgehoben sein.
+      final focused = FocusManager.instance.primaryFocus;
+      expect(focused?.context?.widget, isNot(isA<EditableText>()));
+    });
+
     testWidgets('step 1 → 2 — Weiter navigiert zu Warnabstand', (tester) async {
       await tester.pumpWidget(_host());
       await _openSheet(tester);
