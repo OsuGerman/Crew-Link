@@ -65,7 +65,7 @@ export async function handleFrame(
   // against the tracked snapshot. Unknown hazards (expired / never seen) pass
   // through — there is nothing left to protect.
   if (result.data.type === 'hazard_remove' && snapshotStore !== undefined) {
-    const reporter = snapshotStore.hazardReporter(
+    const reporter = await snapshotStore.hazardReporter(
       convoyId,
       result.data.payload.id,
     );
@@ -103,7 +103,11 @@ export async function handleFrame(
   }
 
   // Fold hazards / route / waypoint into the convoy snapshot for late joiners.
-  snapshotStore?.record(convoyId, result.data);
+  if (snapshotStore !== undefined) {
+    void snapshotStore.record(convoyId, result.data).catch((err: unknown) => {
+      log.error({ err, convoyId }, 'snapshot record failed');
+    });
+  }
 }
 
 function bufferToString(

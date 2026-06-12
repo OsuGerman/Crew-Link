@@ -14,26 +14,26 @@ import {
  * happen AFTER they connect. Complements [PositionStore] (which does the same
  * for GPS).
  *
- * In-memory + per-process: correct for the current single-instance deployment
- * (InProcessFanout). A multi-instance deployment (RedisFanout) would need this
- * state in Redis so every node replays the same snapshot — tracked as a
- * follow-up; until then run a single gateway instance.
+ * Implementations: [createInMemorySnapshotStore] (per-process, default for
+ * single-instance deployments without REDIS_URL) and [RedisSnapshotStore]
+ * (shared state, required when the gateway runs as multiple instances so
+ * every node replays the same snapshot).
  */
 export interface SnapshotStore {
   /** Folds a broadcast frame into the convoy's snapshot (no-op for transient
    * frame types like gps/checkin/status). */
-  record(convoyId: string, frame: InboundFrame): void;
+  record(convoyId: string, frame: InboundFrame): Promise<void>;
 
   /** Frames to replay to a newly-connected socket (active hazards + tour +
    * waypoint), with expired hazards pruned. */
-  snapshot(convoyId: string): OutboundFrame[];
+  snapshot(convoyId: string): Promise<OutboundFrame[]>;
 
   /** Drops a convoy's snapshot (e.g. when it is disbanded). */
-  clear(convoyId: string): void;
+  clear(convoyId: string): Promise<void>;
 
   /** reporterId of a currently-tracked hazard, or undefined if unknown — lets
    * the gateway enforce reporter-only hazard removal. */
-  hazardReporter(convoyId: string, hazardId: string): string | undefined;
+  hazardReporter(convoyId: string, hazardId: string): Promise<string | undefined>;
 }
 
 interface ConvoySnapshot {
@@ -57,7 +57,7 @@ export function createInMemorySnapshotStore(
   }
 
   return {
-    record(convoyId, frame) {
+    async record(convoyId, frame) {
       const state = stateFor(convoyId);
       switch (frame.type) {
         case 'hazard':
@@ -80,7 +80,7 @@ export function createInMemorySnapshotStore(
       }
     },
 
-    snapshot(convoyId) {
+    async snapshot(convoyId) {
       const state = convoys.get(convoyId);
       if (state === undefined) return [];
       const ts = now();
@@ -101,11 +101,11 @@ export function createInMemorySnapshotStore(
       return frames;
     },
 
-    clear(convoyId) {
+    async clear(convoyId) {
       convoys.delete(convoyId);
     },
 
-    hazardReporter(convoyId, hazardId) {
+    async hazardReporter(convoyId, hazardId) {
       return convoys.get(convoyId)?.hazards.get(hazardId)?.reporterId;
     },
   };

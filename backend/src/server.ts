@@ -137,10 +137,26 @@ export async function buildApp(options: BuildOptions): Promise<FastifyInstance> 
       await redisFanout.close();
     });
     gatewayOptions.fanout = redisFanout;
+    if (gatewayOptions.snapshotStore === undefined) {
+      // Multi-instance: the hazard/route/waypoint snapshot lives in Redis so
+      // every node replays the same late-joiner state and the reporter-only
+      // hazard_remove check keeps working across instances.
+      const { RedisSnapshotStore } = await import(
+        './realtime/redis_snapshot_store.js'
+      );
+      const redisSnapshots = new RedisSnapshotStore(
+        options.env.REDIS_URL,
+        app.log,
+      );
+      await redisSnapshots.connect();
+      app.addHook('onClose', async () => {
+        await redisSnapshots.close();
+      });
+      gatewayOptions.snapshotStore = redisSnapshots;
+    }
   } else if (gatewayOptions.snapshotStore === undefined) {
-    // Single-instance only: in-memory hazard/route/waypoint snapshot for late
-    // joiners. With RedisFanout (multi-instance) a per-process snapshot would
-    // be incomplete, so it's left off until backed by shared state.
+    // Single-instance (no REDIS_URL): in-memory hazard/route/waypoint snapshot
+    // for late joiners.
     gatewayOptions.snapshotStore = createInMemorySnapshotStore();
   }
   await app.register(createConvoyGateway(gatewayOptions));

@@ -113,14 +113,20 @@ export function createConvoyGateway(
             });
         }
 
-        // Replay the current hazards / route / waypoint (synchronous, in-memory)
-        // so a late joiner sees them without waiting for the next change.
+        // Replay the current hazards / route / waypoint so a late joiner sees
+        // them without waiting for the next change.
         if (snapshotStore !== undefined) {
-          for (const frame of snapshotStore.snapshot(convoyId)) {
-            if (socket.readyState === socket.OPEN) {
-              socket.send(encodeFrame(frame));
-            }
-          }
+          void snapshotStore
+            .snapshot(convoyId)
+            .then((frames) => {
+              if (socket.readyState !== socket.OPEN) return;
+              for (const frame of frames) {
+                socket.send(encodeFrame(frame));
+              }
+            })
+            .catch((err: unknown) => {
+              app.log.error({ err, convoyId }, 'snapshot replay failed');
+            });
         }
 
         socket.on('message', (raw: Buffer | ArrayBuffer | Buffer[]) => {

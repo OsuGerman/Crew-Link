@@ -42,50 +42,57 @@ const waypoint: WaypointPayload = {
 };
 
 describe('InMemorySnapshotStore', () => {
-  it('replays recorded hazards, tour and waypoint', () => {
+  it('replays recorded hazards, tour and waypoint', async () => {
     const store = createInMemorySnapshotStore();
-    store.record(CONVOY, { type: 'hazard', payload: hazard('h1') });
-    store.record(CONVOY, { type: 'tour', payload: tour });
-    store.record(CONVOY, { type: 'waypoint', payload: waypoint });
+    await store.record(CONVOY, { type: 'hazard', payload: hazard('h1') });
+    await store.record(CONVOY, { type: 'tour', payload: tour });
+    await store.record(CONVOY, { type: 'waypoint', payload: waypoint });
 
-    const frames = store.snapshot(CONVOY);
+    const frames = await store.snapshot(CONVOY);
     expect(frames).toContainEqual({ type: 'hazard', payload: hazard('h1') });
     expect(frames.some((f) => f.type === 'tour')).toBe(true);
     expect(frames.some((f) => f.type === 'waypoint')).toBe(true);
   });
 
-  it('hazard_remove drops the hazard from the snapshot', () => {
+  it('hazard_remove drops the hazard from the snapshot', async () => {
     const store = createInMemorySnapshotStore();
-    store.record(CONVOY, { type: 'hazard', payload: hazard('h1') });
-    store.record(CONVOY, { type: 'hazard_remove', payload: { id: 'h1' } });
-    expect(store.snapshot(CONVOY)).toEqual([]);
+    await store.record(CONVOY, { type: 'hazard', payload: hazard('h1') });
+    await store.record(CONVOY, { type: 'hazard_remove', payload: { id: 'h1' } });
+    await expect(store.snapshot(CONVOY)).resolves.toEqual([]);
   });
 
-  it('empty tour and null waypoint clear them', () => {
+  it('exposes the reporter of a tracked hazard', async () => {
     const store = createInMemorySnapshotStore();
-    store.record(CONVOY, { type: 'tour', payload: tour });
-    store.record(CONVOY, { type: 'waypoint', payload: waypoint });
-    store.record(CONVOY, { type: 'tour', payload: { stops: [] } });
-    store.record(CONVOY, { type: 'waypoint', payload: null });
-    expect(store.snapshot(CONVOY)).toEqual([]);
+    await store.record(CONVOY, { type: 'hazard', payload: hazard('h1') });
+    await expect(store.hazardReporter(CONVOY, 'h1')).resolves.toBe('m1');
+    await expect(store.hazardReporter(CONVOY, 'nope')).resolves.toBeUndefined();
   });
 
-  it('prunes expired hazards on snapshot', () => {
+  it('empty tour and null waypoint clear them', async () => {
+    const store = createInMemorySnapshotStore();
+    await store.record(CONVOY, { type: 'tour', payload: tour });
+    await store.record(CONVOY, { type: 'waypoint', payload: waypoint });
+    await store.record(CONVOY, { type: 'tour', payload: { stops: [] } });
+    await store.record(CONVOY, { type: 'waypoint', payload: null });
+    await expect(store.snapshot(CONVOY)).resolves.toEqual([]);
+  });
+
+  it('prunes expired hazards on snapshot', async () => {
     let nowMs = Date.parse('2026-06-06T12:00:00Z');
     const store = createInMemorySnapshotStore(() => nowMs);
-    store.record(CONVOY, {
+    await store.record(CONVOY, {
       type: 'hazard',
       payload: hazard('h1', '2026-06-06T12:30:00Z'),
     });
-    expect(store.snapshot(CONVOY)).toHaveLength(1);
+    await expect(store.snapshot(CONVOY)).resolves.toHaveLength(1);
 
     nowMs = Date.parse('2026-06-06T13:00:00Z'); // past expiry
-    expect(store.snapshot(CONVOY)).toEqual([]);
+    await expect(store.snapshot(CONVOY)).resolves.toEqual([]);
   });
 
-  it('ignores transient frames and isolates convoys', () => {
+  it('ignores transient frames and isolates convoys', async () => {
     const store = createInMemorySnapshotStore();
-    store.record(CONVOY, {
+    await store.record(CONVOY, {
       type: 'gps',
       payload: {
         memberId: 'm1',
@@ -96,18 +103,18 @@ describe('InMemorySnapshotStore', () => {
         timestamp: '2026-06-06T12:00:00Z',
       },
     });
-    store.record(CONVOY, {
+    await store.record(CONVOY, {
       type: 'status',
       payload: { memberId: 'm1', kind: 'pause', at: '2026-06-06T12:00:00Z' },
     });
-    expect(store.snapshot(CONVOY)).toEqual([]);
-    expect(store.snapshot('other-convoy')).toEqual([]);
+    await expect(store.snapshot(CONVOY)).resolves.toEqual([]);
+    await expect(store.snapshot('other-convoy')).resolves.toEqual([]);
   });
 
-  it('clear() drops the snapshot', () => {
+  it('clear() drops the snapshot', async () => {
     const store = createInMemorySnapshotStore();
-    store.record(CONVOY, { type: 'hazard', payload: hazard('h1') });
-    store.clear(CONVOY);
-    expect(store.snapshot(CONVOY)).toEqual([]);
+    await store.record(CONVOY, { type: 'hazard', payload: hazard('h1') });
+    await store.clear(CONVOY);
+    await expect(store.snapshot(CONVOY)).resolves.toEqual([]);
   });
 });
