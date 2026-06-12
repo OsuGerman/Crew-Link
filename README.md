@@ -15,22 +15,24 @@ Crew Link hält Fahrzeuggruppen auf gemeinsamen Touren zusammen — Motorrad-Tou
 Ein ehrlicher Stand — was läuft, woran gerade gearbeitet wird, was noch offen ist.
 
 **Läuft:**
-- Firebase-Auth mit E-Mail/Passwort (Registrieren + Login), Onboarding, Lobby.
-- Backend live auf Render (Fastify) mit Konvoi-Lifecycle-REST, Live-GPS-WebSocket-Gateway und echter Firebase-ID-Token-Verifizierung — end-to-end verifiziert (gültiges Token → `201`, ungültiges → `401`).
-- Konvoi erstellen/beitreten gegen das echte Backend; Nutzer-Identität konsistent: die Firebase-UID ist die Member-ID in REST, WebSocket und LiveKit.
-- Postgres + PostGIS (Supabase) inkl. Schema und Migrationen.
-- Live-Karte (MapLibre) mit nummerierten Positionen + Grün/Gelb/Rot-Abstand, Leader-Route mit Adresssuche, SOS-Button, Schnellaktionen und Tankalarm — auf echtem Android-Gerät verifiziert.
-- CI grün: Flutter analyze + 328 Tests, Android-/iOS-Build, Backend-Tests.
+- Play Store: geschlossener Test ist live (`com.crewlink.crew_link`), signierte AABs kommen aus der CI; Konto-Löschung in-App + per Web-Formular (GDPR).
+- Firebase-Auth mit E-Mail/Passwort inkl. Passwort-Reset und deutschen Fehlertexten; Onboarding, Lobby, Diagnose-Consent (Opt-in).
+- Backend live auf Render (Fastify) mit Konvoi-Lifecycle-REST, Live-GPS-WebSocket-Gateway und echter Firebase-ID-Token-Verifizierung; Konvoi-Snapshot (Gefahren/Route/Sammelpunkt) wahlweise in Redis — damit multi-instance-fähig.
+- Robuste Verbindungen: Server-Heartbeat gegen halbtote Sockets, Client-Watchdog, frischer Auth-Token bei jedem Reconnect, Offline-Queue für SOS & kritische Meldungen mit ehrlichem UI-Feedback.
+- Live-Karte (MapLibre) im Vollbild mit nummerierten Positionen + Grün/Gelb/Rot-Abstand, Leader-Route mit Adresssuche und Straßen-Routing (OSRM), SOS-Button, Schnellaktionen, Tankalarm — auf echtem Android-Gerät verifiziert.
+- Einladungen über das System-Teilen-Menü, Display-Wakelock während der Fahrt, ruhiges reduziertes Design (dunkel, Orange nur als Akzent).
+- Anti-Impersonation komplett: GPS/Gefahr/Status nur vom Absender, Gefahr-Entfernen nur vom Melder, Route + Sammelpunkt nur vom Leader.
+- CI grün: Flutter analyze + 420+ Widget-/Unit-Tests, Backend-Vitest, Android-Build; signierte AAB-Pipeline.
 
 **In Arbeit:**
-- Live-GPS-Feintest auf mehreren echten Geräten (Karte, Abstandswarnung) gegen das deployte Backend.
+- Push-to-Talk auf LiveKit-SFU als Standard-Transport (P2P-WebRTC bleibt Fallback) — funktioniert dann auch hinter Carrier-NAT.
+- Live-GPS-Feintest auf mehreren echten Geräten gegen das deployte Backend.
 
 **Offen:**
-- Push-to-Talk: LiveKit-Server noch nicht angebunden — die Token-Route liefert bis dahin `503`.
-- Geräte-Verifikation des nativen PTT-Audios (Wiedergabe, Opus-Interop iOS ↔ Android) — bisher nur kompiliert, nicht auf Geräten getestet.
-- iOS-Verteilung: braucht einen bezahlten Apple-Developer-Account (TestFlight / Ad-Hoc). Free-Sideload startet bei dieser framework-schweren App nicht zuverlässig.
-- Play-Store-Release: echter Android-Keystore statt Debug-Key.
-- Optional: Google-Login-UI, Web-Firebase-App.
+- RTDB-Security-Rules deployen (Workflow liegt bereit, braucht das `FIREBASE_TOKEN`-Secret).
+- Geräte-Verifikation des PTT-Audios auf zwei echten Geräten.
+- iOS-Verteilung: braucht einen bezahlten Apple-Developer-Account (TestFlight-Job ist bis dahin deaktiviert).
+- Produktion im Play Store: 12 Tester × 14 Tage im geschlossenen Test, dann Antrag.
 
 ## Features
 
