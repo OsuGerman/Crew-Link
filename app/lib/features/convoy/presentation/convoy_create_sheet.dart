@@ -57,10 +57,14 @@ class _ConvoyCreateSheetState extends State<ConvoyCreateSheet> {
 
   bool get _nameValid => _nameController.text.trim().isNotEmpty;
 
-  void _nextPage() => _pageController.nextPage(
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
-      );
+  void _nextPage() {
+    // Tastatur schließen — Schritt 2 + 3 haben keine Texteingabe.
+    FocusManager.instance.primaryFocus?.unfocus();
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   void _prevPage() => _pageController.previousPage(
         duration: const Duration(milliseconds: 220),

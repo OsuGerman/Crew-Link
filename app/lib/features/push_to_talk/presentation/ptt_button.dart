@@ -8,11 +8,19 @@ import '../application/ptt_providers.dart';
 ///
 /// Pointer-Events statt GestureDetector damit Recording mit dem allerersten
 /// Frame des Kontakts startet (kein Tap-Delay, keine Gesture-Arena).
-/// Während Transmission pulsiert ein roter Glow, idle ist die Farbe orange.
+/// Idle nur ein dezenter Schein; erst während Transmission wird der rote
+/// Glow deutlich — Glow ist hier Zustandssignal, kein Dauer-Deko-Effekt.
 class PttButton extends ConsumerWidget {
   const PttButton({super.key, this.size = 76});
 
   final double size;
+
+  static const _idleGlowAlpha = 0.18;
+  static const _activeGlowAlpha = 0.5;
+  static const _idleBlur = 10.0;
+  static const _activeBlur = 22.0;
+  static const _idleSpread = 0.0;
+  static const _activeSpread = 5.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,9 +45,11 @@ class PttButton extends ConsumerWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: active ? 0.65 : 0.45),
-              blurRadius: active ? 28 : 18,
-              spreadRadius: active ? 8 : 3,
+              color: color.withValues(
+                alpha: active ? _activeGlowAlpha : _idleGlowAlpha,
+              ),
+              blurRadius: active ? _activeBlur : _idleBlur,
+              spreadRadius: active ? _activeSpread : _idleSpread,
             ),
           ],
         ),
