@@ -77,9 +77,12 @@ jobs:
   testflight:
     name: TestFlight upload
     runs-on: macos-latest
-    # push to main, scheduled weekly build, oder manueller workflow_dispatch.
-    # Auf PRs + Forks NIE — würde Secrets exposen.
-    if: (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && github.repository == github.event.repository.full_name
+    # Nur manuell (workflow_dispatch) ODER wenn die Repo-Variable APPLE_CI_ENABLED
+    # auf 'true' steht — die ASC-Secrets sind aktuell Platzhalter (kein bezahlter
+    # Apple-Developer-Account), der Job würde sonst jeden Push rot färben.
+    # Reaktivieren: Settings → Variables → APPLE_CI_ENABLED=true sobald echte
+    # ASC_KEY_*-Secrets hinterlegt sind. Auf PRs + Forks NIE — würde Secrets exposen.
+    if: (github.event_name == 'workflow_dispatch' || ((github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main' && vars.APPLE_CI_ENABLED == 'true')) && github.repository == github.event.repository.full_name
     needs: [app, ios]
     defaults:
       run:
