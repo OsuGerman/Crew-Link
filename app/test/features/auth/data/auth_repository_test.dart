@@ -43,5 +43,9 @@ class _FakeAuthRepo implements AuthRepository {
   Future<void> signOut() async {}
 
   @override
+  Future<void> sendPasswordResetEmail(String email) =>
+      throw UnsupportedError('no email auth in tests');
+
+  @override
   Future<void> deleteAccount() async {}
 }

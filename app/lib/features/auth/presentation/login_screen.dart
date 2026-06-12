@@ -47,6 +47,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  /// Versendet die Passwort-Reset-Mail. Bestätigung ist bewusst neutral —
+  /// kein Hinweis darauf, ob die E-Mail registriert ist.
+  Future<void> _sendPasswordReset() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final error = await ref
+        .read(authNotifierProvider.notifier)
+        .sendPasswordReset(_emailController.text.trim());
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(error ?? 'E-Mail gesendet, falls ein Konto existiert.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
@@ -109,6 +124,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   prefixIcon: Icon(Icons.lock_outline),
                 ),
               ),
+              if (!_isSignUp)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    key: const ValueKey('login-forgot-password'),
+                    onPressed: isLoading ? null : _sendPasswordReset,
+                    child: const Text('Passwort vergessen?'),
+                  ),
+                ),
               const SizedBox(height: AppSpacing.md),
               if (errorMessage != null) ...[
                 Text(

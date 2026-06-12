@@ -1,5 +1,6 @@
 import 'package:crew_link/core/observability/crash_reporter.dart';
 import 'package:crew_link/core/observability/observability_bootstrap.dart';
+import 'package:crew_link/features/auth/application/auth_error_messages.dart';
 import 'package:crew_link/features/auth/application/auth_notifier.dart';
 import 'package:crew_link/features/auth/data/auth_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,10 +17,12 @@ class FakeAuthRepository implements AuthRepository {
   bool signInWithAppleCalled = false;
   bool signOutCalled = false;
   bool deleteAccountCalled = false;
+  String? passwordResetEmail;
 
   Object? emailSignInError;
   Object? appleSignInError;
   Object? deleteAccountError;
+  Object? passwordResetError;
 
   @override
   Future<UserCredential> signInWithEmailAndPassword(
@@ -51,6 +54,12 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {
     signOutCalled = true;
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {
+    passwordResetEmail = email;
+    if (passwordResetError != null) throw passwordResetError!;
   }
 
   @override
@@ -130,12 +139,60 @@ void main() {
           .signInWithEmail('user@example.com', 'wrong');
 
       expect(repo.signInWithEmailCalled, isTrue);
-      // States: idle → loading → error
+      // States: idle → loading → error. Raw exceptions never leak into the
+      // UI — unknown errors map to the German fallback text.
       expect(states[0], const AuthState());
       expect(states[1].isLoading, isTrue);
       expect(states[2].isLoading, isFalse);
-      expect(states[2].errorMessage, isNotNull);
-      expect(states[2].errorMessage, contains('bad-credentials'));
+      expect(states[2].errorMessage, kAuthErrorFallback);
+    });
+
+    test('signInWithEmail — maps FirebaseAuthException codes to German text',
+        () async {
+      final repo = FakeAuthRepository()
+        ..emailSignInError = FirebaseAuthException(code: 'invalid-credential');
+      final container = _makeContainer(repo);
+      addTearDown(container.dispose);
+
+      await container
+          .read(authNotifierProvider.notifier)
+          .signInWithEmail('user@example.com', 'wrong');
+
+      expect(
+        container.read(authNotifierProvider).errorMessage,
+        'E-Mail oder Passwort falsch.',
+      );
+    });
+
+    test('sendPasswordReset — delegates to repository, null on success',
+        () async {
+      final repo = FakeAuthRepository();
+      final container = _makeContainer(repo);
+      addTearDown(container.dispose);
+
+      final error = await container
+          .read(authNotifierProvider.notifier)
+          .sendPasswordReset('user@example.com');
+
+      expect(repo.passwordResetEmail, 'user@example.com');
+      expect(error, isNull);
+      // Reset läuft außerhalb des Formular-States — keine Mutation.
+      expect(container.read(authNotifierProvider), const AuthState());
+    });
+
+    test('sendPasswordReset — returns the mapped message on failure',
+        () async {
+      final repo = FakeAuthRepository()
+        ..passwordResetError = FirebaseAuthException(code: 'invalid-email');
+      final container = _makeContainer(repo);
+      addTearDown(container.dispose);
+
+      final error = await container
+          .read(authNotifierProvider.notifier)
+          .sendPasswordReset('not-an-email');
+
+      expect(error, 'Das ist keine gültige E-Mail-Adresse.');
+      expect(container.read(authNotifierProvider), const AuthState());
     });
 
     test('signInWithApple — sets isLoading then resolves to idle on success',

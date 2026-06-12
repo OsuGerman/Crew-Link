@@ -1,5 +1,6 @@
 import 'package:crew_link/core/observability/crash_reporter.dart';
 import 'package:crew_link/core/observability/observability_bootstrap.dart';
+import 'package:crew_link/features/auth/application/auth_error_messages.dart';
 import 'package:crew_link/features/auth/data/auth_repository.dart';
 import 'package:crew_link/features/auth/presentation/login_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,8 +17,10 @@ import 'package:flutter_test/flutter_test.dart';
 class _FakeAuthRepo implements AuthRepository {
   bool appleSignInCalled = false;
   Object? appleSignInError;
+  Object? passwordResetError;
   String? signedInEmail;
   String? signedUpEmail;
+  String? passwordResetEmail;
 
   @override
   Future<UserCredential> signInWithApple() async {
@@ -46,6 +49,12 @@ class _FakeAuthRepo implements AuthRepository {
 
   @override
   Future<void> signOut() async {}
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {
+    passwordResetEmail = email;
+    if (passwordResetError != null) throw passwordResetError!;
+  }
 
   @override
   Future<void> deleteAccount() async {}
@@ -167,8 +176,68 @@ void main() {
       await tester.pump(); // render the error widget
 
       expect(find.byKey(const ValueKey('login-error')), findsOneWidget);
-      expect(find.textContaining('apple-failed'), findsOneWidget);
+      // Rohe Exceptions erreichen das UI nicht mehr — deutscher Fallback.
+      expect(find.text(kAuthErrorFallback), findsOneWidget);
       debugDefaultTargetPlatformOverride = null;
+    });
+  });
+
+  group('LoginScreen — Passwort vergessen', () {
+    testWidgets('button is visible in sign-in mode, hidden in sign-up mode',
+        (tester) async {
+      await tester.pumpWidget(_wrap(_FakeAuthRepo()));
+
+      final forgot = find.byKey(const ValueKey('login-forgot-password'));
+      expect(forgot, findsOneWidget);
+
+      await tester.ensureVisible(find.byKey(const ValueKey('login-toggle')));
+      await tester.tap(find.byKey(const ValueKey('login-toggle')));
+      await tester.pump();
+      expect(forgot, findsNothing);
+    });
+
+    testWidgets('sends the reset mail and shows a neutral confirmation',
+        (tester) async {
+      final repo = _FakeAuthRepo();
+      await tester.pumpWidget(_wrap(repo));
+
+      await tester.enterText(
+          find.byKey(const ValueKey('login-email')), 'rider@crew.de');
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('login-forgot-password')));
+      await tester.tap(find.byKey(const ValueKey('login-forgot-password')));
+      await tester.pump(); // resolve the repo future
+      await tester.pump(); // render the snackbar
+
+      expect(repo.passwordResetEmail, 'rider@crew.de');
+      expect(
+        find.descendant(
+          of: find.byType(SnackBar),
+          matching: find.text('E-Mail gesendet, falls ein Konto existiert.'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('shows the mapped German message when the reset fails',
+        (tester) async {
+      final repo = _FakeAuthRepo()
+        ..passwordResetError = FirebaseAuthException(code: 'invalid-email');
+      await tester.pumpWidget(_wrap(repo));
+
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('login-forgot-password')));
+      await tester.tap(find.byKey(const ValueKey('login-forgot-password')));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.descendant(
+          of: find.byType(SnackBar),
+          matching: find.text('Das ist keine gültige E-Mail-Adresse.'),
+        ),
+        findsOneWidget,
+      );
     });
   });
 }

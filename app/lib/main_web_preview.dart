@@ -390,6 +390,9 @@ class _DemoAuthRepository implements AuthRepository {
   Future<void> signOut() async {}
 
   @override
+  Future<void> sendPasswordResetEmail(String email) async {}
+
+  @override
   Future<void> deleteAccount() async {}
 }
 

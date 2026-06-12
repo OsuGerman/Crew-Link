@@ -20,6 +20,10 @@ abstract class AuthRepository {
   );
   Future<void> signOut();
 
+  /// Sends the Firebase password-reset email. Whether an account exists is
+  /// deliberately NOT surfaced to callers (neutral confirmation in the UI).
+  Future<void> sendPasswordResetEmail(String email);
+
   /// Deletes the currently signed-in Firebase user account. May throw a
   /// `requires-recent-login` FirebaseAuthException if the session is stale.
   Future<void> deleteAccount();
@@ -86,6 +90,10 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _auth.signOut();
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) =>
+      _auth.sendPasswordResetEmail(email: email);
 
   @override
   Future<void> deleteAccount() async {
