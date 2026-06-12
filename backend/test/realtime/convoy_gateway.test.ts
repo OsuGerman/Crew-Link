@@ -5,47 +5,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { loadEnv } from '../../src/config/env.js';
 import { buildApp } from '../../src/server.js';
-import type { GpsPayload, InboundFrame } from '../../src/realtime/wire.js';
+import type { InboundFrame } from '../../src/realtime/wire.js';
+import {
+  MEMBER_A,
+  MEMBER_B,
+  makeGps,
+  nextMessage,
+  openSocket,
+  wsUrl,
+} from './ws_test_utils.js';
 
 const CONVOY_ID = 'test-convoy';
-const MEMBER_A = 'member-a';
-const MEMBER_B = 'member-b';
-
-function makeGps(memberId: string, lng: number, lat: number): GpsPayload {
-  return {
-    memberId,
-    latitude: lat,
-    longitude: lng,
-    heading: 0,
-    speed: 0,
-    timestamp: new Date().toISOString(),
-  };
-}
-
-function openSocket(url: string): Promise<WebSocket> {
-  return new Promise((resolveOpen, rejectOpen) => {
-    const ws = new WebSocket(url);
-    ws.addEventListener('open', () => resolveOpen(ws), { once: true });
-    ws.addEventListener('error', (event) => rejectOpen(event), { once: true });
-  });
-}
-
-function nextMessage(ws: WebSocket, timeoutMs = 1000): Promise<string> {
-  return new Promise((resolveMsg, rejectMsg) => {
-    const timer = setTimeout(
-      () => rejectMsg(new Error('timed out waiting for ws message')),
-      timeoutMs,
-    );
-    ws.addEventListener(
-      'message',
-      (event) => {
-        clearTimeout(timer);
-        resolveMsg(String(event.data));
-      },
-      { once: true },
-    );
-  });
-}
 
 describe('convoy gateway', () => {
   let app: FastifyInstance;
@@ -53,13 +23,7 @@ describe('convoy gateway', () => {
 
   beforeAll(async () => {
     const env = loadEnv({ NODE_ENV: 'test', LOG_LEVEL: 'fatal' });
-    app = await buildApp({
-      env,
-      gateway: {
-        // MEMBER_A is the convoy owner/leader for the leader-only frame tests.
-        resolveLeader: async (memberId) => memberId === MEMBER_A,
-      },
-    });
+    app = await buildApp({ env });
     await app.listen({ host: '127.0.0.1', port: 0 });
     port = (app.server.address() as AddressInfo).port;
   });
@@ -69,7 +33,7 @@ describe('convoy gateway', () => {
   });
 
   function url(token: string, convoyId = CONVOY_ID): string {
-    return `ws://127.0.0.1:${port}/convoys/${convoyId}/stream?token=${token}`;
+    return wsUrl(port, token, convoyId);
   }
 
   it('relays gps frames from one member to every other member in the convoy', async () => {
@@ -169,196 +133,4 @@ describe('convoy gateway', () => {
     wsB.close();
   });
 
-  it('replays an existing hazard to a late joiner on connect', async () => {
-    const lateConvoy = 'convoy-late';
-    const wsA = await openSocket(url(MEMBER_A, lateConvoy));
-
-    // A reports a hazard before B joins.
-    wsA.send(
-      JSON.stringify({
-        type: 'hazard',
-        payload: {
-          id: 'hz1',
-          type: 'accident',
-          latitude: 52.5,
-          longitude: 13.4,
-          reporterId: MEMBER_A,
-          createdAt: new Date().toISOString(),
-        },
-      } satisfies InboundFrame),
-    );
-    await new Promise((r) => setTimeout(r, 50)); // let the gateway record it
-
-    // B joins late → the gateway replays the recorded hazard on connect.
-    const wsB = await openSocket(url(MEMBER_B, lateConvoy));
-    const received = JSON.parse(await nextMessage(wsB)) as InboundFrame;
-    expect(received.type).toBe('hazard');
-    expect(received.payload).toMatchObject({ id: 'hz1', reporterId: MEMBER_A });
-
-    wsA.close();
-    wsB.close();
-  });
-
-  it('drops a hazard_remove from a member who is not the reporter', async () => {
-    const convoy = 'convoy-hazremove';
-    const wsA = await openSocket(url(MEMBER_A, convoy));
-    const wsB = await openSocket(url(MEMBER_B, convoy));
-
-    // A reports a hazard; B receives the broadcast.
-    const inboundB = nextMessage(wsB);
-    wsA.send(
-      JSON.stringify({
-        type: 'hazard',
-        payload: {
-          id: 'hzX',
-          type: 'accident',
-          latitude: 52.5,
-          longitude: 13.4,
-          reporterId: MEMBER_A,
-          createdAt: new Date().toISOString(),
-        },
-      } satisfies InboundFrame),
-    );
-    await inboundB;
-
-    // B (not the reporter) tries to remove A's hazard → must be dropped, so A
-    // never sees the removal.
-    let removalSeen = false;
-    wsA.addEventListener('message', (event) => {
-      if ((JSON.parse(String(event.data)) as InboundFrame).type ===
-          'hazard_remove') {
-        removalSeen = true;
-      }
-    });
-    wsB.send(
-      JSON.stringify({
-        type: 'hazard_remove',
-        payload: { id: 'hzX' },
-      } satisfies InboundFrame),
-    );
-    await new Promise((r) => setTimeout(r, 100));
-    expect(removalSeen).toBe(false);
-
-    wsA.close();
-    wsB.close();
-  });
-
-  it('broadcasts a tour frame from the convoy leader', async () => {
-    const convoy = 'convoy-tour-ok';
-    const wsLeader = await openSocket(url(MEMBER_A, convoy)); // leader
-    const wsB = await openSocket(url(MEMBER_B, convoy));
-
-    const inbound = nextMessage(wsB);
-    wsLeader.send(
-      JSON.stringify({
-        type: 'tour',
-        payload: {
-          stops: [
-            {
-              latitude: 48,
-              longitude: 11,
-              label: 'Stop',
-              setBy: MEMBER_A,
-              setAt: new Date().toISOString(),
-            },
-          ],
-        },
-      } satisfies InboundFrame),
-    );
-
-    const received = JSON.parse(await inbound) as InboundFrame;
-    expect(received.type).toBe('tour');
-
-    wsLeader.close();
-    wsB.close();
-  });
-
-  it('broadcasts a waypoint frame from the convoy leader', async () => {
-    const convoy = 'convoy-wp-ok';
-    const wsLeader = await openSocket(url(MEMBER_A, convoy)); // leader
-    const wsB = await openSocket(url(MEMBER_B, convoy));
-
-    const inbound = nextMessage(wsB);
-    wsLeader.send(
-      JSON.stringify({
-        type: 'waypoint',
-        payload: {
-          latitude: 48,
-          longitude: 11,
-          label: 'Treffpunkt',
-          setBy: MEMBER_A,
-          setAt: new Date().toISOString(),
-        },
-      } satisfies InboundFrame),
-    );
-
-    const received = JSON.parse(await inbound) as InboundFrame;
-    expect(received.type).toBe('waypoint');
-
-    wsLeader.close();
-    wsB.close();
-  });
-
-  it('drops a waypoint frame from a non-leader', async () => {
-    const convoy = 'convoy-wp-deny';
-    const wsLeader = await openSocket(url(MEMBER_A, convoy));
-    const wsB = await openSocket(url(MEMBER_B, convoy));
-
-    let seen = false;
-    wsLeader.addEventListener('message', () => {
-      seen = true;
-    });
-    // member-b is not the leader — its waypoint must never reach member-a.
-    wsB.send(
-      JSON.stringify({
-        type: 'waypoint',
-        payload: {
-          latitude: 48,
-          longitude: 11,
-          label: 'Treffpunkt',
-          setBy: MEMBER_B,
-          setAt: new Date().toISOString(),
-        },
-      } satisfies InboundFrame),
-    );
-
-    await new Promise((r) => setTimeout(r, 100));
-    expect(seen).toBe(false);
-
-    wsLeader.close();
-    wsB.close();
-  });
-
-  it('drops a tour frame from a non-leader', async () => {
-    const convoy = 'convoy-tour-deny';
-    const wsLeader = await openSocket(url(MEMBER_A, convoy));
-    const wsB = await openSocket(url(MEMBER_B, convoy));
-
-    let seen = false;
-    wsLeader.addEventListener('message', () => {
-      seen = true;
-    });
-    wsB.send(
-      JSON.stringify({
-        type: 'tour',
-        payload: {
-          stops: [
-            {
-              latitude: 48,
-              longitude: 11,
-              label: 'Stop',
-              setBy: MEMBER_B,
-              setAt: new Date().toISOString(),
-            },
-          ],
-        },
-      } satisfies InboundFrame),
-    );
-
-    await new Promise((r) => setTimeout(r, 100));
-    expect(seen).toBe(false);
-
-    wsLeader.close();
-    wsB.close();
-  });
 });
