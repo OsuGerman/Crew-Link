@@ -7,8 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/observability/app_logger.dart';
 import '../../../core/observability/observability_bootstrap.dart';
 import '../../../features/convoy/application/convoy_providers.dart';
+import '../data/fallback_ptt_repository.dart';
+import '../data/livekit_ptt_repository.dart';
 import '../data/ptt_channel.dart';
 import '../data/ptt_repository.dart';
+import '../data/ptt_token_fetcher.dart';
 import '../data/webrtc_ptt_receiver.dart';
 import '../data/webrtc_ptt_repository.dart';
 import '../domain/audio_session_event.dart';
@@ -17,13 +20,42 @@ import '../domain/ptt_session.dart';
 /// Injectable PttChannel – in Tests mit Fake überschreibbar.
 final pttChannelProvider = Provider<PttChannel>((ref) => PttChannel());
 
-/// WebRTC-DataChannel-Repository (Prototyp, P2P via Firebase Signaling).
-/// Typ PttRepository erlaubt Override mit Noop/Fake in Tests und Web-Preview.
-final pttRepositoryProvider = Provider<PttRepository>((ref) {
+/// Holt LiveKit-Tokens von der Backend-Route — gleiche Base-URL und Auth wie
+/// die übrigen REST-Calls (frischer Firebase-ID-Token pro Anfrage).
+final pttTokenFetcherProvider = Provider<PttTokenFetcher>((ref) {
+  return PttTokenFetcher(
+    config: ref.watch(apiConfigProvider),
+    tokenProvider: ref.watch(freshAuthTokenProvider),
+    client: ref.watch(httpClientProvider),
+  );
+});
+
+/// Produktiv-Verbindung zur LiveKit-SFU — Tests injizieren einen Fake,
+/// damit kein echter Raum betreten wird.
+final livekitRoomConnectorProvider =
+    Provider<LiveKitRoomConnector>((ref) => connectLiveKitRoom);
+
+/// P2P-WebRTC-Prototyp (nur STUN — scheitert hinter Carrier-Grade-NAT).
+/// Seit der LiveKit-Umstellung nur noch Fallback ohne Server-Konfiguration.
+final webrtcPttRepositoryProvider = Provider<PttRepository>((ref) {
   final userId = ref.watch(selfMemberIdProvider);
   return WebRtcDataChannelPttRepository(
     userId: userId,
     database: FirebaseDatabase.instance,
+  );
+});
+
+/// PTT-Transport: Standard ist LiveKit (SFU, NAT-sicher). Liefert die
+/// Token-Route 503 (LiveKit-Env fehlt auf dem Server), fällt die App auf den
+/// P2P-WebRTC-Pfad zurück — siehe [FallbackPttRepository].
+/// Typ PttRepository erlaubt Override mit Noop/Fake in Tests und Web-Preview.
+final pttRepositoryProvider = Provider<PttRepository>((ref) {
+  return FallbackPttRepository(
+    primary: LiveKitPttRepository(
+      tokenFetcher: ref.watch(pttTokenFetcherProvider),
+      connector: ref.watch(livekitRoomConnectorProvider),
+    ),
+    fallbackBuilder: () => ref.read(webrtcPttRepositoryProvider),
   );
 });
 
