@@ -2,6 +2,7 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 
 import { InProcessFanout, type FanoutAdapter } from './fanout.js';
 import { handleFrame } from './frame_handler.js';
+import { startHeartbeat } from './heartbeat.js';
 import type { PositionStore } from './position_store.js';
 import type { SnapshotStore } from './snapshot_store.js';
 import { encodeFrame } from './wire.js';
@@ -88,6 +89,10 @@ export function createConvoyGateway(
         }
         const { convoyId } = req.params;
 
+        // Detect half-dead TCP connections (LTE handover, NAT timeout) that
+        // never emit a close event on their own.
+        const stopHeartbeat = startHeartbeat(socket);
+
         const unregister = fanout.addLocalConnection(convoyId, {
           memberId,
           send: (data) => {
@@ -142,6 +147,7 @@ export function createConvoyGateway(
         });
 
         socket.on('close', () => {
+          stopHeartbeat();
           unregister();
         });
       },
