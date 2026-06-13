@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import 'accent_banner.dart';
 
 /// Shown in the convoy view while the local device has no GPS fix. Tapping
 /// "Aktivieren" drives [LocationPermissionService.ensureReady] (turn the device
@@ -20,21 +21,14 @@ class GpsReadinessBanner extends StatelessWidget {
         AppSpacing.lg,
         AppSpacing.sm,
       ),
-      child: Container(
-        key: const ValueKey('gps-readiness-banner'),
+      child: AccentBanner(
+        bannerKey: const ValueKey('gps-readiness-banner'),
+        stripeColor: AppColors.orange,
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.md,
           AppSpacing.sm,
           AppSpacing.sm,
           AppSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(
-            color: AppColors.surfaceOutline,
-            width: AppBorders.hairline,
-          ),
         ),
         child: Row(
           children: [

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/realtime/connection_status.dart';
 import '../../../core/theme/app_theme.dart';
 import '../application/convoy_providers.dart';
+import 'accent_banner.dart';
 
 /// Inline banner that reflects the live `connectionStatus` of the
 /// active convoy socket. Renders nothing while connected — only
@@ -25,46 +26,40 @@ class ConnectionStatusBanner extends ConsumerWidget {
     if (status == null || status == ConnectionStatus.connected) {
       return const SizedBox.shrink();
     }
-    final (label, icon, bg, fg, borderColor) = switch (status) {
+    // Streifenfarbe = Statussignal; Icon/Text in der Statusfarbe (fg).
+    // connecting = neutral, reconnecting = warning, offline = danger.
+    final (label, icon, stripe, fg) = switch (status) {
       ConnectionStatus.connecting => (
           'Verbinde mit Konvoi …',
           Icons.sync,
-          AppColors.surfaceHigh,
-          AppColors.textSecondary,
           AppColors.surfaceOutline,
+          AppColors.textSecondary,
         ),
       ConnectionStatus.reconnecting => (
           'Verbindung verloren · versuche erneut …',
           Icons.cloud_off,
-          AppColors.surfaceHigh,
           AppColors.warning,
-          AppColors.surfaceOutline,
+          AppColors.warning,
         ),
       ConnectionStatus.offline => (
           'Offline',
           Icons.signal_wifi_off,
-          AppColors.dangerSurface,
           AppColors.danger,
           AppColors.danger,
         ),
       ConnectionStatus.connected => (
           '',
           Icons.check,
-          AppColors.surface,
-          AppColors.textPrimary,
           AppColors.surfaceOutline,
+          AppColors.textPrimary,
         ),
     };
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: Container(
-        key: const ValueKey('connection-status-banner'),
+      child: AccentBanner(
+        bannerKey: const ValueKey('connection-status-banner'),
+        stripeColor: stripe,
         padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: borderColor, width: AppBorders.hairline),
-        ),
         child: Row(
           children: [
             Icon(icon, color: fg, size: _iconSize),

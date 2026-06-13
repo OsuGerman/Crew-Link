@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../application/check_in_providers.dart';
 import '../application/convoy_providers.dart';
 import '../application/waypoint_providers.dart';
+import 'accent_banner.dart';
 import 'route_sheet.dart';
 
 /// Banner oberhalb des Radars: zeigt aktuellen Waypoint mit Distanz +
@@ -23,106 +24,89 @@ class WaypointBanner extends ConsumerWidget {
     final bearing = ref.watch(waypointBearingDegreesProvider);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => showModalBottomSheet<void>(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => const RouteSheet(),
-          ),
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          child: Container(
-            key: const ValueKey('waypoint-banner'),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.md,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceHigh,
-              border: Border.all(
-                color: AppColors.surfaceOutline,
-                width: AppBorders.hairline,
+      child: AccentBanner(
+        bannerKey: const ValueKey('waypoint-banner'),
+        stripeColor: AppColors.orange,
+        onTap: () => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => const RouteSheet(),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: AppAccents.orangeTint,
+                shape: BoxShape.circle,
               ),
-              borderRadius: BorderRadius.circular(AppRadii.card),
+              child: const Icon(
+                Icons.flag_rounded,
+                color: AppColors.orange,
+                size: 20,
+              ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: AppAccents.orangeTint,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.flag_rounded,
-                    color: AppColors.orange,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            'STOPP 1',
-                            style: AppTextStyles.sectionLabel.copyWith(
-                              fontSize: 10,
-                            ),
+                      Text(
+                        'STOPP 1',
+                        style: AppTextStyles.sectionLabel.copyWith(
+                          fontSize: 10,
+                        ),
+                      ),
+                      if (tour.length > 1) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          '/ ${tour.length}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textMuted,
+                            letterSpacing: 1.6,
+                            fontFeatures: [FontFeature.tabularFigures()],
                           ),
-                          if (tour.length > 1) ...[
-                            const SizedBox(width: 4),
-                            Text(
-                              '/ ${tour.length}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textMuted,
-                                letterSpacing: 1.6,
-                                fontFeatures: [FontFeature.tabularFigures()],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        wp.label,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _statusLine(distance, bearing),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
+                      ],
                     ],
                   ),
-                ),
-                _CheckInBadge(),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.textMuted,
-                  size: 22,
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    wp.label,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _statusLine(distance, bearing),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+            _CheckInBadge(),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textMuted,
+              size: 22,
+            ),
+          ],
         ),
       ),
     );
