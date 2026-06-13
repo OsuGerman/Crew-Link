@@ -14,7 +14,6 @@ import '../data/road_route_service.dart';
 import '../domain/map_viewport.dart';
 import '../domain/route_geojson.dart';
 
-const _selfPinColor = '#1565C0';
 const _sourceId = 'convoy-members';
 const _circleLayerId = 'convoy-circles';
 const _labelLayerId = 'convoy-labels';
@@ -32,10 +31,21 @@ const _routeSourceId = 'convoy-route';
 const _routeLineLayerId = 'convoy-route-line';
 const _routeStopLayerId = 'convoy-route-stops';
 const _routeStopLabelLayerId = 'convoy-route-stop-labels';
-const _routeColor = '#FF6B35';
-const _routeStopColor = '#9E4A1E';
 const _routeLineWidth = 4.0;
 const _routeStopRadius = 13.0;
+
+/// Sekundäre Daten (Route, eigener Pin-Ring) werden in HMI-Blau gezeichnet,
+/// damit Orange das knappe Handlungssignal bleibt. Hex kommt per [_cssHex] aus
+/// AppColors (kein neues Literal). Gedimmte Variante für nicht-aktuelle Stopps.
+final _routeColor = _cssHex(AppColors.accentBlue);
+final _routeStopColor =
+    _cssHex(Color.lerp(AppColors.accentBlue, Colors.black, 0.4)!);
+
+/// Eigener Pin: neutraler dunkler Kern mit ORANGE Ring (Ich-Markierung als
+/// einziges Orange-Signal auf der Karte). Fremde Pins behalten ihre
+/// Gap-Tier-Farbe (Live-Abstandssignal) mit weißem Ring.
+final _selfPinColor = _cssHex(AppColors.surfaceHigh);
+final _selfStrokeColor = _cssHex(AppColors.orange);
 
 /// Map member-pin colour for a green/yellow/red gap tier.
 String _tierHex(GapTier t) => switch (t) {
@@ -48,6 +58,16 @@ String _tierHex(GapTier t) => switch (t) {
 /// die Farbe selbst kommt aber weiter aus AppColors (kein neues Hex-Literal).
 String _cssHex(Color c) =>
     '#${c.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+
+/// Pro-Feature-Strichfarbe: eigener Pin orange umrandet, fremde weiß. An die
+/// `isSelf`-Property gekoppelt (im GeoJSON gesetzt), damit ein einziger
+/// Circle-Layer beide Fälle zeichnet.
+final _memberStrokeColorExpression = [
+  'case',
+  ['get', 'isSelf'],
+  _selfStrokeColor,
+  _strokeColor,
+];
 
 /// Ziffern-Farbe der Member-Pins, an die Pin-Farbe gekoppelt: weiße Ziffern
 /// auf Amber erreichen nur ~1.6:1 Kontrast — gelbe Pins bekommen dunklen
@@ -98,7 +118,7 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     await ctrl.addLineLayer(
       _routeSourceId,
       _routeLineLayerId,
-      const LineLayerProperties(
+      LineLayerProperties(
         lineColor: _routeColor,
         lineWidth: _routeLineWidth,
         lineOpacity: 0.85,
@@ -109,7 +129,7 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     await ctrl.addCircleLayer(
       _routeSourceId,
       _routeStopLayerId,
-      const CircleLayerProperties(
+      CircleLayerProperties(
         circleRadius: _routeStopRadius,
         circleColor: [
           'case',
@@ -142,11 +162,11 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
     await ctrl.addCircleLayer(
       _sourceId,
       _circleLayerId,
-      const CircleLayerProperties(
+      CircleLayerProperties(
         circleRadius: _circleRadius,
-        circleColor: ['get', 'pinColor'],
+        circleColor: const ['get', 'pinColor'],
         circleStrokeWidth: _strokeWidth,
-        circleStrokeColor: _strokeColor,
+        circleStrokeColor: _memberStrokeColorExpression,
         circleStrokeOpacity: _strokeOpacity,
       ),
     );
@@ -201,6 +221,7 @@ class _ConvoyMapWidgetState extends ConsumerState<ConvoyMapWidget> {
           'properties': {
             'label': m.ordinal > 0 ? '${m.ordinal}' : '',
             'pinColor': m.isSelf ? _selfPinColor : _tierHex(m.tier),
+            'isSelf': m.isSelf,
           },
         },
     ],
