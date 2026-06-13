@@ -103,6 +103,16 @@ class _LiveDotState extends State<_LiveDot>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse;
 
+  /// Solider Kern + scharfer Ring mit Luft dazwischen (statt weichem Glow).
+  /// Tiefe über Helligkeit: der Ring liest sich als klarer Live-Indikator.
+  static const _coreSize = 8.0;
+  static const _ringGap = 3.0;
+  static const _ringWidth = 1.4;
+  static const _minScale = 0.92;
+  static const _scaleRange = 0.16;
+  static const _ringAlphaBase = 0.35;
+  static const _ringAlphaRange = 0.45;
+
   @override
   void initState() {
     super.initState();
@@ -122,29 +132,49 @@ class _LiveDotState extends State<_LiveDot>
   Widget build(BuildContext context) {
     if (!widget.isLive) {
       return Container(
-        width: 8,
-        height: 8,
+        width: _coreSize,
+        height: _coreSize,
         decoration: const BoxDecoration(
           color: AppColors.textMuted,
           shape: BoxShape.circle,
         ),
       );
     }
+    const ringSize = _coreSize + (_ringGap + _ringWidth) * 2;
     return AnimatedBuilder(
       animation: _pulse,
-      builder: (_, __) => Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(
-          color: AppColors.success,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.success.withValues(
-                alpha: 0.55 - 0.45 * _pulse.value,
+      builder: (_, __) => SizedBox(
+        width: ringSize,
+        height: ringSize,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Scharfer Ring (kein Glow) — pulst dezent in Helligkeit + Größe.
+            Transform.scale(
+              scale: _minScale + _scaleRange * _pulse.value,
+              child: Container(
+                width: ringSize,
+                height: ringSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.success.withValues(
+                      alpha: _ringAlphaBase + _ringAlphaRange * _pulse.value,
+                    ),
+                    width: _ringWidth,
+                  ),
+                ),
               ),
-              blurRadius: 6 + 6 * _pulse.value,
-              spreadRadius: 1 + 1 * _pulse.value,
+            ),
+            const SizedBox(
+              width: _coreSize,
+              height: _coreSize,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.success,
+                  shape: BoxShape.circle,
+                ),
+              ),
             ),
           ],
         ),

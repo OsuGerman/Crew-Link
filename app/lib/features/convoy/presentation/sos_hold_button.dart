@@ -72,6 +72,10 @@ class _SosHoldButtonState extends State<SosHoldButton>
   late final AnimationController _ctrl;
   bool _fired = false;
 
+  /// Dezente Flächentönung der Ruhefläche (klarer Container, kein Glow).
+  static const _surfaceTintAlpha = 0.12;
+  static const _holdSeconds = 3;
+
   @override
   void initState() {
     super.initState();
@@ -113,28 +117,34 @@ class _SosHoldButtonState extends State<SosHoldButton>
         animation: _ctrl,
         builder: (_, __) {
           final p = _ctrl.value;
-          final secondsLeft = ((1 - p) * 3).ceil();
+          final secondsLeft = ((1 - p) * _holdSeconds).ceil();
+          // Während des Füllens steht der Inhalt auf dem soliden danger-Balken
+          // → weiß für sauberen Kontrast; in Ruhe bleibt er danger-getönt,
+          // damit das Gefahrensignal erhalten bleibt.
+          final foreground = p > 0 ? Colors.white : color;
           return Container(
             key: const ValueKey('sos-hold-button'),
             height: widget.height,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: color.withValues(alpha: _surfaceTintAlpha),
               borderRadius: BorderRadius.circular(AppRadii.card),
-              border: Border.all(color: color, width: 1.4),
+              border: Border.all(color: color, width: AppBorders.selected),
             ),
             child: Stack(
               alignment: Alignment.center,
               children: [
+                // Klarer solider danger-Balken (kein Alpha-Matsch) — der
+                // Fortschritt liest sich als echtes Füllen, nicht als Schleier.
                 FractionallySizedBox(
                   alignment: Alignment.centerLeft,
                   widthFactor: p,
-                  child: ColoredBox(color: color.withValues(alpha: 0.4)),
+                  child: ColoredBox(color: color),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.sos_rounded, color: color),
+                    Icon(Icons.sos_rounded, color: foreground),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
                       !enabled
@@ -143,7 +153,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
                               ? 'Halten … ${secondsLeft}s'
                               : 'SOS · 3 Sek. halten',
                       style: TextStyle(
-                        color: color,
+                        color: foreground,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,

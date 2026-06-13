@@ -8,19 +8,22 @@ import '../application/ptt_providers.dart';
 ///
 /// Pointer-Events statt GestureDetector damit Recording mit dem allerersten
 /// Frame des Kontakts startet (kein Tap-Delay, keine Gesture-Arena).
-/// Idle nur ein dezenter Schein; erst während Transmission wird der rote
-/// Glow deutlich — Glow ist hier Zustandssignal, kein Dauer-Deko-Effekt.
+/// Tiefe über Helligkeit statt Glow: idle ein dezenter Haarlinien-Ring, beim
+/// Senden ein SCHARFER 2px-Ring in der Senden-Farbe mit etwas Luft (Gap) zum
+/// Button + ein leichter Scale-Puls. Kein weicher boxShadow-Blob mehr — der
+/// zentrale Button bleibt das einzige Orange-Verlaufselement.
 class PttButton extends ConsumerWidget {
   const PttButton({super.key, this.size = 76});
 
   final double size;
 
-  static const _idleGlowAlpha = 0.18;
-  static const _activeGlowAlpha = 0.5;
-  static const _idleBlur = 10.0;
-  static const _activeBlur = 22.0;
-  static const _idleSpread = 0.0;
-  static const _activeSpread = 5.0;
+  /// Abstand des Aktiv-Rings zum Button (Luft, damit der Ring als Rahmen liest,
+  /// nicht als Border am Kreis klebt).
+  static const _ringGap = 5.0;
+  static const _idleRingWidth = AppBorders.hairline;
+  static const _activeRingWidth = 2.0;
+  static const _idleRingAlpha = 0.35;
+  static const _activeScale = 1.04;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,30 +36,39 @@ class PttButton extends ConsumerWidget {
           ref.read(pttStateProvider.notifier).stopTransmitting(),
       onPointerCancel: (_) =>
           ref.read(pttStateProvider.notifier).stopTransmitting(),
-      child: AnimatedContainer(
+      child: AnimatedScale(
         duration: const Duration(milliseconds: 140),
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [color, Color.lerp(color, Colors.black, 0.25)!],
-            radius: 0.95,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(
-                alpha: active ? _activeGlowAlpha : _idleGlowAlpha,
-              ),
-              blurRadius: active ? _activeBlur : _idleBlur,
-              spreadRadius: active ? _activeSpread : _idleSpread,
+        scale: active ? _activeScale : 1.0,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          width: size + _ringGap * 2,
+          height: size + _ringGap * 2,
+          padding: const EdgeInsets.all(_ringGap),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: active
+                  ? color
+                  : color.withValues(alpha: _idleRingAlpha),
+              width: active ? _activeRingWidth : _idleRingWidth,
             ),
-          ],
-        ),
-        child: Icon(
-          active ? Icons.mic_rounded : Icons.mic_none_rounded,
-          color: Colors.white,
-          size: size * 0.42,
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [color, Color.lerp(color, Colors.black, 0.25)!],
+                radius: 0.95,
+              ),
+            ),
+            child: Center(
+              child: Icon(
+                active ? Icons.mic_rounded : Icons.mic_none_rounded,
+                color: Colors.white,
+                size: size * 0.42,
+              ),
+            ),
+          ),
         ),
       ),
     );
