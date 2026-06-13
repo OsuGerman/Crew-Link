@@ -1,9 +1,18 @@
+import 'dart:async';
+
 import 'package:crew_link/features/convoy/data/convoy_api.dart';
 import 'package:crew_link/features/convoy/presentation/convoy_home_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('friendlyConvoyError', () {
+    test('Timeout → „Server antwortet nicht", nie die rohe Exception', () {
+      final msg = friendlyConvoyError(TimeoutException('timeout'));
+      expect(msg, contains('antwortet nicht'));
+      expect(msg, contains('erneut versuchen'));
+      expect(msg, isNot(contains('TimeoutException')));
+    });
+
     test('404 → invite-code-not-found warning, never the raw exception', () {
       final msg = friendlyConvoyError(ConvoyApiException(404, '{"error":"x"}'));
       expect(msg, contains('nicht gefunden'));

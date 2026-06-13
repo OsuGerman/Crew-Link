@@ -13,19 +13,27 @@ class ConvoyApi {
   final ApiConfig config;
   final http.Client _client;
 
+  /// Obergrenze pro REST-Call. Großzügig genug für einen Render-Kaltstart
+  /// (Free-Tier ~25–30 s), aber endlich: ein hängendes Backend (z. B.
+  /// pausierte DB) löst statt eines ewigen Spinners einen [TimeoutException]
+  /// aus, den die UI als „erneut versuchen" zeigt.
+  static const requestTimeout = Duration(seconds: 40);
+
   Future<Convoy> createConvoy({
     required String name,
     required String authToken,
     double proximityWarningMeters = 500,
   }) async {
-    final response = await _client.post(
-      config.restBaseUrl.replace(path: '/convoys'),
-      headers: _authHeaders(authToken),
-      body: jsonEncode({
-        'name': name,
-        'proximityWarningMeters': proximityWarningMeters,
-      }),
-    );
+    final response = await _client
+        .post(
+          config.restBaseUrl.replace(path: '/convoys'),
+          headers: _authHeaders(authToken),
+          body: jsonEncode({
+            'name': name,
+            'proximityWarningMeters': proximityWarningMeters,
+          }),
+        )
+        .timeout(requestTimeout);
     return _parseConvoy(response);
   }
 
@@ -33,11 +41,13 @@ class ConvoyApi {
     required String inviteCode,
     required String authToken,
   }) async {
-    final response = await _client.post(
-      config.restBaseUrl.replace(path: '/convoys/join'),
-      headers: _authHeaders(authToken),
-      body: jsonEncode({'inviteCode': inviteCode}),
-    );
+    final response = await _client
+        .post(
+          config.restBaseUrl.replace(path: '/convoys/join'),
+          headers: _authHeaders(authToken),
+          body: jsonEncode({'inviteCode': inviteCode}),
+        )
+        .timeout(requestTimeout);
     return _parseConvoy(response);
   }
 
@@ -50,7 +60,7 @@ class ConvoyApi {
     final response = await _client.get(
       config.restBaseUrl.replace(path: '/convoys/$convoyId'),
       headers: {'Authorization': 'Bearer $authToken'},
-    );
+    ).timeout(requestTimeout);
     return _parseConvoy(response);
   }
 
@@ -63,7 +73,7 @@ class ConvoyApi {
     final response = await _client.delete(
       config.restBaseUrl.replace(path: '/convoys/$convoyId/membership'),
       headers: {'Authorization': 'Bearer $authToken'},
-    );
+    ).timeout(requestTimeout);
     if (response.statusCode >= 400) {
       throw ConvoyApiException(response.statusCode, response.body);
     }
@@ -75,7 +85,7 @@ class ConvoyApi {
     final response = await _client.delete(
       config.restBaseUrl.replace(path: '/users/me'),
       headers: {'Authorization': 'Bearer $authToken'},
-    );
+    ).timeout(requestTimeout);
     if (response.statusCode >= 400) {
       throw ConvoyApiException(response.statusCode, response.body);
     }

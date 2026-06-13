@@ -42,6 +42,9 @@ final _convoyBusyProvider = StateProvider<bool>((ref) => false);
 /// dumping the raw exception — e.g. a wrong invite code becomes a clean warning
 /// rather than "Fehler: ConvoyApiException(404) …".
 String friendlyConvoyError(Object error) {
+  if (error is TimeoutException) {
+    return 'Server antwortet nicht. Bitte erneut versuchen.';
+  }
   if (error is ConvoyApiException) {
     return switch (error.statusCode) {
       404 => 'Konvoi-Code nicht gefunden. Bitte prüfe den Code.',
@@ -340,13 +343,24 @@ class ConvoyHomeScreen extends ConsumerWidget {
       // Beitritt nicht abbrechen, daher unawaited + intern gekapselt.
       unawaited(_escalateLocationPermission());
     } catch (e, st) {
-      // 404 (falscher Code) / 401 (Token abgelaufen) sind Nutzer-/Auth-Fehler —
-      // nur warnen. Nur echte, unerwartete Fehler melden (Observability-Regel).
-      if (e is! ConvoyApiException || e.statusCode >= 500) {
+      // Erwartbar: Timeout (hängendes/kaltes Backend) + Nutzer-/Auth-Fehler
+      // (404 falscher Code, 401 Token abgelaufen) — nur diese NICHT als Crash
+      // melden. Echte, unerwartete Fehler (5xx/unbekannt) gehen an Observability.
+      final expected = e is TimeoutException ||
+          (e is ConvoyApiException && e.statusCode < 500);
+      if (!expected) {
         appLog.e('ConvoyHomeScreen._runApi', error: e, stackTrace: st);
         unawaited(ObservabilityBootstrap.build().reportError(e, st));
       }
-      messenger.showSnackBar(SnackBar(content: Text(friendlyConvoyError(e))));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(friendlyConvoyError(e)),
+          action: SnackBarAction(
+            label: 'Erneut',
+            onPressed: () => _runApi(context, ref, action: action),
+          ),
+        ),
+      );
     } finally {
       ref.read(_convoyBusyProvider.notifier).state = false;
     }

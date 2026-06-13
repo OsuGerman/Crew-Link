@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:crew_link/core/config/api_config.dart';
 import 'package:crew_link/features/convoy/data/convoy_api.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -67,6 +69,33 @@ void main() {
       expect(req.url.path, '/convoys/c1/membership');
       expect(req.headers['Authorization'], 'Bearer tok');
       expect(_sendsJsonContentType(req), isFalse);
+    });
+
+    test('createConvoy wirft TimeoutException, wenn das Backend nie antwortet',
+        () {
+      // Hängendes Backend (z. B. pausierte DB): die Antwort kommt nie. Ohne
+      // Timeout bliebe die Lobby ewig auf „Konvoi wird vorbereitet …".
+      fakeAsync((async) {
+        final client = MockClient((_) => Completer<http.Response>().future);
+        final api = ConvoyApi(config: ApiConfig.local(), client: client);
+        Object? caught;
+        unawaited(
+          api
+              .createConvoy(name: 'Trip', authToken: 'tok')
+              .then<void>((_) {})
+              .catchError((Object e) {
+            caught = e;
+          }),
+        );
+
+        // Knapp unter dem Timeout: noch kein Fehler.
+        async.elapse(ConvoyApi.requestTimeout - const Duration(seconds: 1));
+        expect(caught, isNull);
+
+        // Über den Timeout hinaus: TimeoutException statt ewigem Hängen.
+        async.elapse(const Duration(seconds: 2));
+        expect(caught, isA<TimeoutException>());
+      });
     });
   });
 }
