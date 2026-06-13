@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:crew_link/features/convoy/presentation/convoy_home_screen.dart';
 import 'package:crew_link/core/config/api_config.dart';
 import 'package:crew_link/core/models/gps_update.dart';
 import 'package:crew_link/core/realtime/connection_status.dart';
 import 'package:crew_link/core/realtime/convoy_socket_client.dart';
 import 'package:crew_link/features/auth/application/auth_providers.dart';
 import 'package:crew_link/features/convoy/application/convoy_providers.dart';
+import 'package:crew_link/features/convoy/data/convoy_api.dart';
+import 'package:crew_link/features/convoy/presentation/convoy_home_screen.dart';
 import 'package:crew_link/features/onboarding/application/onboarding_state.dart';
 import 'package:crew_link/features/push_to_talk/presentation/ptt_button.dart';
 import 'package:flutter/material.dart';
@@ -83,12 +84,18 @@ class FakeConvoySocketClient extends ConvoySocketClient {
 Widget _app(
   http.Client client, {
   FakeConvoySocketClient? socket,
+  bool hangToken = false,
 }) {
   return ProviderScope(
     overrides: [
       httpClientProvider.overrideWithValue(client),
       authTokenProvider.overrideWithValue('test-token'),
-      authIdTokenProvider.overrideWith((ref) => 'test-token'),
+      // hangToken: simuliert einen nie auflösenden Firebase-Token-Refresh —
+      // der Create/Join-Call muss trotzdem ins Timeout laufen (kein Endlos-Spinner).
+      if (hangToken)
+        authIdTokenProvider.overrideWith((ref) => Completer<String?>().future)
+      else
+        authIdTokenProvider.overrideWith((ref) => 'test-token'),
       selfMemberIdProvider.overrideWithValue('self'),
       devSignedInOverrideProvider.overrideWith((ref) => true),
       clockProvider.overrideWithValue(
@@ -217,6 +224,28 @@ void main() {
 
       expect(find.textContaining('fehlgeschlagen'), findsOneWidget);
       expect(find.text('Neuen Konvoi starten'), findsOneWidget);
+    });
+
+    testWidgets(
+        'hängendes Backend → Timeout-Snackbar + Erneut statt Endlos-Spinner',
+        (tester) async {
+      // Token-Refresh löst nie auf (hangToken) — der Create-Call muss trotzdem
+      // nach ConvoyApi.requestTimeout abbrechen statt ewig „wird vorbereitet".
+      await tester.pumpWidget(
+        _app(_client((req) => http.Response('{}', 200)), hangToken: true),
+      );
+      await _doCreate(tester);
+
+      // Vor dem Timeout: Busy-Spinner steht.
+      expect(find.byKey(const ValueKey('convoy-busy')), findsOneWidget);
+
+      // Über das Timeout-Budget hinaus pumpen → kontrollierter Abbruch.
+      await tester.pump(ConvoyApi.requestTimeout + const Duration(seconds: 1));
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('convoy-busy')), findsNothing);
+      expect(find.textContaining('antwortet nicht'), findsOneWidget);
+      expect(find.text('Erneut'), findsOneWidget);
     });
 
     testWidgets('leave button calls DELETE /convoys/:id/membership and returns to lobby',

@@ -333,10 +333,15 @@ class ConvoyHomeScreen extends ConsumerWidget {
     final messenger = ScaffoldMessenger.of(context);
     ref.read(_convoyBusyProvider.notifier).state = true;
     try {
-      // Await the Firebase ID token — reading authTokenProvider synchronously
-      // can return '' while the token future resolves (→ empty Bearer → 401).
-      final token = await ref.read(authIdTokenProvider.future) ?? '';
-      final convoy = await action(api, token);
+      // Token-Abruf UND der eigentliche Call laufen in EINEM Timeout-Budget:
+      // sowohl ein hängender Firebase-Token-Refresh als auch ein kaltes/
+      // pausiertes Backend dürfen die Lobby nicht endlos auf dem Spinner halten.
+      // Nach requestTimeout bricht es kontrolliert mit TimeoutException ab
+      // (→ „Server antwortet nicht" + Erneut). Token leer → '' → 401 wie bisher.
+      final convoy = await Future(() async {
+        final token = await ref.read(authIdTokenProvider.future) ?? '';
+        return action(api, token);
+      }).timeout(ConvoyApi.requestTimeout);
       ref.read(currentConvoyProvider.notifier).state = convoy;
       // Konvoi läuft jetzt → Hintergrund-Tracking braucht "Always".
       // Kontextbezogen (nicht beim App-Start) hochstufen; Fehler dürfen den
