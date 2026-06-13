@@ -25,10 +25,10 @@ Ein ehrlicher Stand — was läuft, woran gerade gearbeitet wird, was noch offen
 - CI grün: Flutter analyze + 420+ Widget-/Unit-Tests, Backend-Vitest, Android-Build; signierte AAB-Pipeline.
 
 **In Arbeit:**
-- Push-to-Talk auf LiveKit-SFU als Standard-Transport (P2P-WebRTC bleibt Fallback) — funktioniert dann auch hinter Carrier-NAT.
 - Live-GPS-Feintest auf mehreren echten Geräten gegen das deployte Backend.
 
 **Offen:**
+- Push-to-Talk über LiveKit scharf schalten: Code ist komplett (geteilter Raum pro Konvoi, Hörer-Seite, P2P-Fallback) — es fehlen nur die `LIVEKIT_*`-Variablen auf dem Server.
 - RTDB-Security-Rules deployen (Workflow liegt bereit, braucht das `FIREBASE_TOKEN`-Secret).
 - Geräte-Verifikation des PTT-Audios auf zwei echten Geräten.
 - iOS-Verteilung: braucht einen bezahlten Apple-Developer-Account (TestFlight-Job ist bis dahin deaktiviert).
