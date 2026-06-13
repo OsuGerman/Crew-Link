@@ -10,6 +10,7 @@ import '../../../core/models/convoy.dart';
 import '../../../core/models/gps_update.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../maps/presentation/convoy_map_widget.dart';
+import '../../push_to_talk/application/livekit_ptt_session.dart';
 import '../../push_to_talk/application/ptt_providers.dart';
 import '../application/breach_notification_watcher.dart';
 import '../application/convoy_providers.dart';
@@ -86,6 +87,10 @@ class _ActiveConvoyViewState extends ConsumerState<ActiveConvoyView> {
       ref.watch(breachNotificationWatcherProvider);
       ref.watch(convoySplitWatcherProvider);
       ref.watch(pttFrameRoutingProvider(convoy.id));
+      // Geteilte LiveKit-Session: EIN gemuteter Raum-Join pro Konvoi (Hörer
+      // hören Remote-Audio automatisch, PTT-Druck togglet nur das Mikro).
+      // Bei 503 (LiveKit-Env fehlt) bleibt der P2P-Pfad darunter zuständig.
+      ref.watch(livekitPttSessionProvider(convoy.id));
       ref.watch(pttReceiverProvider(convoy.id));
       ref.watch(pttPlaybackProvider(convoy.id));
       ref.watch(carPlayConvoyStateWiringProvider);

@@ -1,17 +1,16 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:crew_link/core/config/api_config.dart';
 import 'package:crew_link/features/push_to_talk/data/livekit_ptt_repository.dart';
 import 'package:crew_link/features/push_to_talk/data/ptt_token_fetcher.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 
 class _FakeRoomHandle implements LiveKitRoomHandle {
   final micCalls = <bool>[];
   var closed = false;
+
+  @override
+  set onDisconnected(void Function()? callback) {}
 
   @override
   Future<void> setMicrophoneEnabled(bool enabled) async {
@@ -24,89 +23,82 @@ class _FakeRoomHandle implements LiveKitRoomHandle {
   }
 }
 
-PttTokenFetcher _fetcher({int status = 200}) => PttTokenFetcher(
-      config: ApiConfig.local(),
-      tokenProvider: () async => 'auth',
-      client: MockClient((req) async {
-        final body = status == 200
-            ? jsonEncode({
-                'url': 'wss://livekit.example',
-                'token': 'lk-token',
-                'roomName': 'convoy-c1',
-              })
-            : '{"error":"nope"}';
-        return http.Response(body, status);
-      }),
-    );
+/// Lässt das erste Mikro-Einschalten am [micGate] hängen — simuliert den
+/// laufenden nativen Mic-Start, während die Taste schon losgelassen wird.
+class _GatedMicRoomHandle extends _FakeRoomHandle {
+  final micGate = Completer<void>();
+
+  @override
+  Future<void> setMicrophoneEnabled(bool enabled) async {
+    micCalls.add(enabled);
+    if (enabled) await micGate.future;
+  }
+}
 
 void main() {
-  group('LiveKitPttRepository', () {
-    test('startTransmitting verbindet mit Grant-URL/-Token und öffnet Mikro',
+  group('LiveKitPttRepository – Mic-Toggle auf geteilter Session', () {
+    test('startTransmitting löst die Session auf und öffnet NUR das Mikro',
         () async {
       final handle = _FakeRoomHandle();
-      final connected = <(String, String)>[];
+      final resolvedWith = <String>[];
       final repo = LiveKitPttRepository(
-        tokenFetcher: _fetcher(),
-        connector: (url, token) async {
-          connected.add((url, token));
+        sessionResolver: (convoyId) async {
+          resolvedWith.add(convoyId);
           return handle;
         },
       );
 
       await repo.startTransmitting('c1');
 
-      expect(connected.single, ('wss://livekit.example', 'lk-token'));
+      expect(resolvedWith, ['c1']);
       expect(handle.micCalls, [true]);
-      expect(handle.closed, isFalse);
+      expect(handle.closed, isFalse, reason: 'kein Connect/Close pro Druck');
     });
 
-    test('stopTransmitting schließt Mikro und trennt die Verbindung',
+    test('stopTransmitting mutet nur — Raum bleibt für Hörer offen',
         () async {
       final handle = _FakeRoomHandle();
-      final repo = LiveKitPttRepository(
-        tokenFetcher: _fetcher(),
-        connector: (_, __) async => handle,
-      );
+      final repo = LiveKitPttRepository(sessionResolver: (_) async => handle);
 
       await repo.startTransmitting('c1');
       await repo.stopTransmitting();
 
       expect(handle.micCalls, [true, false]);
-      expect(handle.closed, isTrue);
+      expect(handle.closed, isFalse,
+          reason: 'die geteilte Session überlebt den Tastendruck');
     });
 
     test('stopTransmitting ohne Start ist ein No-op', () async {
       final repo = LiveKitPttRepository(
-        tokenFetcher: _fetcher(),
-        connector: (_, __) async => _FakeRoomHandle(),
+        sessionResolver: (_) async => _FakeRoomHandle(),
       );
 
       await expectLater(repo.stopTransmitting(), completes);
     });
 
-    test('Doppel-Start verbindet nicht zweimal', () async {
-      var connects = 0;
+    test('Doppel-Start öffnet das Mikro nicht zweimal', () async {
+      final handle = _FakeRoomHandle();
+      var resolves = 0;
       final repo = LiveKitPttRepository(
-        tokenFetcher: _fetcher(),
-        connector: (_, __) async {
-          connects += 1;
-          return _FakeRoomHandle();
+        sessionResolver: (_) async {
+          resolves += 1;
+          return handle;
         },
       );
 
       await repo.startTransmitting('c1');
       await repo.startTransmitting('c1');
 
-      expect(connects, 1);
+      expect(resolves, 1);
+      expect(handle.micCalls, [true]);
     });
 
-    test('Release während des Verbindungsaufbaus lässt kein offenes Mikro',
+    test('Release während des Session-Aufbaus lässt kein offenes Mikro',
         () async {
       final handle = _FakeRoomHandle();
       final gate = Completer<void>();
       final repo = LiveKitPttRepository(
-        tokenFetcher: _fetcher(),
-        connector: (_, __) async {
+        sessionResolver: (_) async {
           await gate.future;
           return handle;
         },
@@ -117,15 +109,31 @@ void main() {
       gate.complete();
       await start;
 
-      expect(handle.closed, isTrue);
-      expect(handle.micCalls, isEmpty);
+      expect(handle.micCalls, isEmpty,
+          reason: 'Mikro darf nach dem Release nicht nachträglich angehen');
+      expect(handle.closed, isFalse, reason: 'Session gehört dem Provider');
     });
 
-    test('503 der Token-Route propagiert als PttTokenException', () async {
-      final repo = LiveKitPttRepository(
-        tokenFetcher: _fetcher(status: 503),
-        connector: (_, __) async => fail('darf ohne Token nicht verbinden'),
-      );
+    test('Release während des Mikro-Starts mutet sofort wieder', () async {
+      final handle = _GatedMicRoomHandle();
+      final repo = LiveKitPttRepository(sessionResolver: (_) async => handle);
+
+      final start = repo.startTransmitting('c1');
+      // Bis zum hängenden setMicrophoneEnabled(true) laufen lassen.
+      await Future<void>.delayed(Duration.zero);
+      final stop = repo.stopTransmitting();
+      handle.micGate.complete();
+      await start;
+      await stop;
+
+      expect(handle.micCalls.first, isTrue);
+      expect(handle.micCalls.last, isFalse,
+          reason: 'Endzustand nach Quick-Tap muss gemutet sein');
+    });
+
+    test('P2P-Entscheidung (Resolver null) → PttTokenException 503',
+        () async {
+      final repo = LiveKitPttRepository(sessionResolver: (_) async => null);
 
       await expectLater(
         repo.startTransmitting('c1'),
@@ -138,8 +146,7 @@ void main() {
 
     test('sendFrame ist ein No-op (LiveKit encodiert selbst)', () {
       final repo = LiveKitPttRepository(
-        tokenFetcher: _fetcher(),
-        connector: (_, __) async => _FakeRoomHandle(),
+        sessionResolver: (_) async => _FakeRoomHandle(),
       );
 
       expect(() => repo.sendFrame(Uint8List(4)), returnsNormally);

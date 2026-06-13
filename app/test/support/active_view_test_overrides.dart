@@ -8,6 +8,7 @@ import 'package:crew_link/features/convoy/application/convoy_providers.dart';
 import 'package:crew_link/features/convoy/application/convoy_split_watcher.dart';
 import 'package:crew_link/features/convoy/application/lost_connection_watcher.dart';
 import 'package:crew_link/features/convoy/application/wakelock_provider.dart';
+import 'package:crew_link/features/push_to_talk/application/livekit_ptt_session.dart';
 import 'package:crew_link/features/push_to_talk/application/ptt_providers.dart';
 import 'package:crew_link/features/push_to_talk/data/webrtc_ptt_receiver.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,6 +52,11 @@ List<Override> activeViewStubOverrides() => <Override>[
       pttFrameRoutingProvider.overrideWith((ref, convoyId) {}),
       pttPlaybackProvider.overrideWith((ref, convoyId) {}),
       pttReceiverProvider.overrideWith((ref, convoyId) => _NoopPttReceiver()),
+      // No real LiveKit join/token fetch in widget tests: fixed P2P decision
+      // (receiver/playback above are stubbed as well).
+      livekitPttSessionProvider.overrideWith(
+        (ref, convoyId) async => const PttTransportDecision.p2pFallback(),
+      ),
       wakelockControlProvider.overrideWithValue(const NoopWakelockControl()),
       // The convoy session now folds in the device's own GPS; stub it so tests
       // don't reach the geolocator plugin (unavailable in widget tests).

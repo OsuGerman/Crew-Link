@@ -11,29 +11,14 @@ import '../data/fallback_ptt_repository.dart';
 import '../data/livekit_ptt_repository.dart';
 import '../data/ptt_channel.dart';
 import '../data/ptt_repository.dart';
-import '../data/ptt_token_fetcher.dart';
 import '../data/webrtc_ptt_receiver.dart';
 import '../data/webrtc_ptt_repository.dart';
 import '../domain/audio_session_event.dart';
 import '../domain/ptt_session.dart';
+import 'livekit_ptt_session.dart';
 
 /// Injectable PttChannel – in Tests mit Fake überschreibbar.
 final pttChannelProvider = Provider<PttChannel>((ref) => PttChannel());
-
-/// Holt LiveKit-Tokens von der Backend-Route — gleiche Base-URL und Auth wie
-/// die übrigen REST-Calls (frischer Firebase-ID-Token pro Anfrage).
-final pttTokenFetcherProvider = Provider<PttTokenFetcher>((ref) {
-  return PttTokenFetcher(
-    config: ref.watch(apiConfigProvider),
-    tokenProvider: ref.watch(freshAuthTokenProvider),
-    client: ref.watch(httpClientProvider),
-  );
-});
-
-/// Produktiv-Verbindung zur LiveKit-SFU — Tests injizieren einen Fake,
-/// damit kein echter Raum betreten wird.
-final livekitRoomConnectorProvider =
-    Provider<LiveKitRoomConnector>((ref) => connectLiveKitRoom);
 
 /// P2P-WebRTC-Prototyp (nur STUN — scheitert hinter Carrier-Grade-NAT).
 /// Seit der LiveKit-Umstellung nur noch Fallback ohne Server-Konfiguration.
@@ -45,31 +30,54 @@ final webrtcPttRepositoryProvider = Provider<PttRepository>((ref) {
   );
 });
 
-/// PTT-Transport: Standard ist LiveKit (SFU, NAT-sicher). Liefert die
-/// Token-Route 503 (LiveKit-Env fehlt auf dem Server), fällt die App auf den
-/// P2P-WebRTC-Pfad zurück — siehe [FallbackPttRepository].
+/// PTT-Transport: Standard ist LiveKit (SFU, NAT-sicher) über die GETEILTE
+/// Session aus [livekitPttSessionProvider] — die 503-Entscheidung fällt damit
+/// beim Konvoi-Eintritt, nicht beim ersten Tastendruck. Ohne LiveKit-Env auf
+/// dem Server schaltet [FallbackPttRepository] wie bisher sticky auf P2P um.
 /// Typ PttRepository erlaubt Override mit Noop/Fake in Tests und Web-Preview.
 final pttRepositoryProvider = Provider<PttRepository>((ref) {
   return FallbackPttRepository(
     primary: LiveKitPttRepository(
-      tokenFetcher: ref.watch(pttTokenFetcherProvider),
-      connector: ref.watch(livekitRoomConnectorProvider),
+      sessionResolver: (convoyId) => resolveLiveKitPttSession(ref, convoyId),
     ),
     fallbackBuilder: () => ref.read(webrtcPttRepositoryProvider),
   );
 });
 
-/// Empfänger-Service für einen konkreten Konvoi-Stream.
-/// Startet [WebRtcPttReceiver.start] automatisch und stoppt bei Dispose.
-final pttReceiverProvider = Provider.family<WebRtcPttReceiver, String>(
+/// Baut den P2P-Empfänger — Tests ersetzen die Factory, weil der echte
+/// Receiver `FirebaseDatabase.instance` braucht (wirft ohne Firebase-Init).
+final pttReceiverFactoryProvider =
+    Provider<WebRtcPttReceiver Function(String convoyId, String localUserId)>(
+  (ref) => (convoyId, localUserId) => WebRtcPttReceiver(
+        convoyId: convoyId,
+        localUserId: localUserId,
+        database: FirebaseDatabase.instance,
+      ),
+);
+
+/// Empfänger-Service für einen konkreten Konvoi-Stream (P2P-Pfad).
+///
+/// Startet [WebRtcPttReceiver.start] NUR, wenn die Transport-Entscheidung
+/// vom Konvoi-Eintritt auf P2P gefallen ist (Token-Route 503): läuft die
+/// geteilte LiveKit-Session, spielt livekit_client subscribed Remote-Audio
+/// selbst ab — ein parallel lauschender P2P-Empfänger wäre doppeltes Audio.
+/// Der minimal spätere Start (ein Token-Roundtrip) verpasst keine laufende
+/// Übertragung: RTDB `onChildAdded` liefert auch bereits existierende
+/// Sessions. autoDispose stoppt den Receiver beim Konvoi-Austritt.
+final pttReceiverProvider =
+    Provider.autoDispose.family<WebRtcPttReceiver, String>(
   (ref, convoyId) {
     final localUserId = ref.watch(selfMemberIdProvider);
-    final receiver = WebRtcPttReceiver(
-      convoyId: convoyId,
-      localUserId: localUserId,
-      database: FirebaseDatabase.instance,
+    final receiver =
+        ref.watch(pttReceiverFactoryProvider)(convoyId, localUserId);
+    final useP2p = ref.watch(
+      livekitPttSessionProvider(convoyId).select(
+        (decision) => decision.valueOrNull?.usesP2pFallback ?? false,
+      ),
     );
-    receiver.start();
+    if (useP2p) {
+      receiver.start();
+    }
     ref.onDispose(receiver.stop);
     return receiver;
   },
@@ -86,8 +94,10 @@ final pttActiveProvider = Provider<bool>(
 );
 
 /// Leitet empfangene Opus-Frames vom Receiver an den nativen Playback-Kanal.
-/// Muss im aktiven Konvoi-Screen per convoyId gewatcht werden.
-final pttPlaybackProvider = Provider.family<void, String>((ref, convoyId) {
+/// Muss im aktiven Konvoi-Screen per convoyId gewatcht werden. autoDispose,
+/// damit der gewatchte [pttReceiverProvider] beim Austritt abgebaut wird.
+final pttPlaybackProvider =
+    Provider.autoDispose.family<void, String>((ref, convoyId) {
   final receiver = ref.watch(pttReceiverProvider(convoyId));
   final channel = ref.watch(pttChannelProvider);
   final sub = receiver.frames.listen(channel.playFrame);
@@ -97,9 +107,11 @@ final pttPlaybackProvider = Provider.family<void, String>((ref, convoyId) {
   });
 });
 
-/// Verdrahtet Audio-Frames mit dem WebRTC-Repository wenn PTT aktiv ist.
-/// Wird im aktiven Konvoi-Screen per convoyId gewatcht.
-final pttFrameRoutingProvider = Provider.family<void, String>((ref, convoyId) {
+/// Verdrahtet Audio-Frames mit dem PTT-Repository wenn PTT aktiv ist.
+/// Wird im aktiven Konvoi-Screen per convoyId gewatcht; autoDispose hält
+/// die Lebensdauer konsistent mit Receiver/Playback/Session.
+final pttFrameRoutingProvider =
+    Provider.autoDispose.family<void, String>((ref, convoyId) {
   final repository = ref.watch(pttRepositoryProvider);
   final notifier = ref.read(pttStateProvider.notifier);
 

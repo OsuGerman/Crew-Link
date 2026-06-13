@@ -5,10 +5,15 @@ import 'package:livekit_client/livekit_client.dart';
 import 'ptt_repository.dart';
 import 'ptt_token_fetcher.dart';
 
-/// Minimaler Ausschnitt der LiveKit-Room-API, den das Repository braucht.
+/// Minimaler Ausschnitt der LiveKit-Room-API, den PTT braucht.
 /// Tests injizieren ein Fake-Handle statt einer echten SFU-Verbindung.
 abstract interface class LiveKitRoomHandle {
   Future<void> setMicrophoneEnabled(bool enabled);
+
+  /// Wird gerufen, wenn die Verbindung ENDGÜLTIG verloren ist — livekit_client
+  /// hat seine internen Reconnect-Versuche erschöpft (engine.dart,
+  /// `defaultRetryDelaysInMs`). Feuert nicht beim eigenen [close].
+  set onDisconnected(void Function()? callback);
 
   /// Trennt die Verbindung und gibt native Ressourcen frei.
   Future<void> close();
@@ -20,6 +25,13 @@ typedef LiveKitRoomConnector = Future<LiveKitRoomHandle> Function(
   String token,
 );
 
+/// Liefert das Room-Handle der geteilten Konvoi-Session.
+/// `null` = Server ohne LiveKit-Konfiguration (P2P-Pfad zuständig);
+/// wirft, wenn der Session-Aufbau fehlgeschlagen ist.
+typedef LiveKitSessionResolver = Future<LiveKitRoomHandle?> Function(
+  String convoyId,
+);
+
 /// Produktiv-Connector: echte [Room]-Verbindung über livekit_client.
 Future<LiveKitRoomHandle> connectLiveKitRoom(String url, String token) async {
   final room = Room();
@@ -28,9 +40,21 @@ Future<LiveKitRoomHandle> connectLiveKitRoom(String url, String token) async {
 }
 
 class _RoomHandle implements LiveKitRoomHandle {
-  _RoomHandle(this._room);
+  _RoomHandle(this._room) {
+    _listener = _room.createListener()
+      ..on<RoomDisconnectedEvent>((event) {
+        // clientInitiated = unser eigenes close() — kein Rejoin-Anlass.
+        if (event.reason == DisconnectReason.clientInitiated) return;
+        _onDisconnected?.call();
+      });
+  }
 
   final Room _room;
+  late final EventsListener<RoomEvent> _listener;
+  void Function()? _onDisconnected;
+
+  @override
+  set onDisconnected(void Function()? callback) => _onDisconnected = callback;
 
   @override
   Future<void> setMicrophoneEnabled(bool enabled) async {
@@ -39,58 +63,67 @@ class _RoomHandle implements LiveKitRoomHandle {
 
   @override
   Future<void> close() async {
+    _onDisconnected = null;
+    await _listener.dispose();
     await _room.disconnect();
     await _room.dispose();
   }
 }
 
-/// PTT-Transport über LiveKit (SFU): funktioniert hinter Carrier-Grade-NAT,
-/// weil Audio über den Server läuft — kein P2P-Hole-Punching nötig.
+/// PTT-Sende-Pfad über die GETEILTE LiveKit-Session des Konvois
+/// (livekitPttSessionProvider): [startTransmitting]/[stopTransmitting]
+/// togglen nur noch das Mikrofon des bereits verbundenen Raums.
 ///
-/// Pro Transmission wird ein frisches Token geholt und der Raum betreten;
-/// [stopTransmitting] trennt wieder. Audio-Encoding übernimmt LiveKit intern.
+/// Gegenüber der Pro-Druck-Architektur entfallen damit Token-Fetch +
+/// Raum-Connect bei jedem Tastendruck (Latenz) und die zweite Verbindung
+/// derselben Identity (LiveKit kickt sonst die erste — Identity-Kick).
 class LiveKitPttRepository implements PttRepository {
-  LiveKitPttRepository({
-    required PttTokenFetcher tokenFetcher,
-    LiveKitRoomConnector connector = connectLiveKitRoom,
-  })  : _tokenFetcher = tokenFetcher,
-        _connector = connector;
+  LiveKitPttRepository({required LiveKitSessionResolver sessionResolver})
+      : _resolveSession = sessionResolver;
 
-  final PttTokenFetcher _tokenFetcher;
-  final LiveKitRoomConnector _connector;
+  final LiveKitSessionResolver _resolveSession;
 
-  LiveKitRoomHandle? _room;
+  /// Raum-Handle, solange der lokale Nutzer sendet (Mikro offen).
+  LiveKitRoomHandle? _active;
 
-  /// Generation des aktuellen Tastendrucks: erkennt ein Release das während
-  /// Token-Fetch/Verbindungsaufbau passiert — sonst bliebe ein offenes Mikro
-  /// im Raum zurück (Kurz-Tap ist der häufigste Fall im Feld).
-  int _session = 0;
+  /// Generation des aktuellen Tastendrucks. Der Connect-Race der alten
+  /// Architektur (Raum-Aufbau pro Druck) ist weg, weil der Raum beim Druck
+  /// längst verbunden ist — aber das await auf den Session-AUFBAU (erster
+  /// Druck direkt nach Konvoi-Eintritt) kann ein Release überholen; dann
+  /// darf das Mikro nicht nachträglich angehen.
+  int _generation = 0;
 
   @override
   Future<void> startTransmitting(String convoyId) async {
-    if (_room != null) return; // bereits verbunden — Doppel-Start ignorieren
-    final session = ++_session;
-    final grant = await _tokenFetcher.fetchToken(convoyId);
-    final room = await _connector(grant.url, grant.token);
-    if (session != _session) {
-      // Taste wurde während des Aufbaus losgelassen — sofort wieder abbauen.
-      await room.close();
-      return;
+    if (_active != null) return; // sendet bereits — Doppel-Start ignorieren
+    final generation = ++_generation;
+    final room = await _resolveSession(convoyId);
+    if (room == null) {
+      // Transport-Entscheidung vom Konvoi-Eintritt: LiveKit nicht
+      // konfiguriert. Gleiche Exception wie der direkte Token-Fetch, damit
+      // FallbackPttRepository identisch umschaltet — ohne neuen Roundtrip.
+      throw PttTokenException(
+        pttLiveKitUnavailableStatus,
+        'LiveKit nicht konfiguriert — Entscheidung beim Konvoi-Eintritt',
+      );
     }
-    // Handle VOR dem Mikrofon-Start merken: schlägt setMicrophoneEnabled
-    // fehl (z. B. Berechtigung), räumt stopTransmitting trotzdem auf.
-    _room = room;
+    if (generation != _generation) return; // Release während Session-Aufbau
+    _active = room;
     await room.setMicrophoneEnabled(true);
+    if (generation != _generation) {
+      // Release kam an, während das Mikro noch anging — sofort wieder muten.
+      await room.setMicrophoneEnabled(false);
+    }
   }
 
   @override
   Future<void> stopTransmitting() async {
-    _session++;
-    final room = _room;
-    _room = null;
+    _generation++;
+    final room = _active;
+    _active = null;
     if (room == null) return;
+    // Nur muten — der Raum bleibt für Hörer-Seite und nächsten Druck offen.
     await room.setMicrophoneEnabled(false);
-    await room.close();
   }
 
   /// No-op: LiveKit published den Mikrofon-Track selbst — die Opus-Frames des

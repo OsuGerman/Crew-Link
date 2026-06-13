@@ -6,9 +6,6 @@ import '../../../core/observability/observability_bootstrap.dart';
 import 'ptt_repository.dart';
 import 'ptt_token_fetcher.dart';
 
-/// HTTP 503 von der Token-Route = LiveKit serverseitig nicht konfiguriert.
-const _httpServiceUnavailable = 503;
-
 /// Wählt den PTT-Transport zur Laufzeit:
 ///
 /// * Standard ist [_primary] (LiveKit-SFU — funktioniert hinter CGNAT).
@@ -53,7 +50,7 @@ class FallbackPttRepository implements PttRepository {
       await active.startTransmitting(convoyId);
     } on PttTokenException catch (error, stack) {
       _transmitting = null;
-      if (error.statusCode != _httpServiceUnavailable) {
+      if (error.statusCode != pttLiveKitUnavailableStatus) {
         _report('PTT: LiveKit-Token-Route fehlgeschlagen', error, stack);
         return;
       }

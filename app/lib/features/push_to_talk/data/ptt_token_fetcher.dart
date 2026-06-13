@@ -7,6 +7,12 @@ import '../../../core/config/api_config.dart';
 /// HTTP-Status ab dem die Token-Route als Fehler gilt (4xx/5xx).
 const _httpClientErrorFloor = 400;
 
+/// HTTP 503 der Token-Route = LiveKit serverseitig nicht konfiguriert
+/// (LIVEKIT_URL/KEY/SECRET fehlen) — das Signal für den P2P-Fallback,
+/// kein harter Fehler. Geteilt zwischen Session-Aufbau (Konvoi-Eintritt),
+/// Sende-Pfad und [FallbackPttRepository].
+const pttLiveKitUnavailableStatus = 503;
+
 /// Zugangsdaten für einen LiveKit-Raum — Antwort der Backend-Route
 /// `POST /convoys/:convoyId/ptt-token` (backend/src/routes/ptt.ts).
 class PttTokenResponse {
